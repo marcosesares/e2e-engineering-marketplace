@@ -1,6 +1,6 @@
 # qa-signoff.md — schema (per-Task human-QA checklist)
 
-Lives at `.e2e-engineering/tasks/<id>/qa-signoff.md`. Written by [/e2e-flight](../flight/SKILL.md) when it defers human-QA (ADR 0018). The audit record; `queue.json` holds the actionable state. Cleared in the [QA sign-off session](../post-impl/human-qa.md) (multi-Task pass).
+Lives at `.e2e-engineering/tasks/<id>/qa-signoff.md`. Written by [/e2e-flight](../../e2e-flight/SKILL.md) when it defers human-QA (ADR 0018). The audit record; `queue.json` holds the actionable state. Cleared in the [QA sign-off session](../post-impl/human-qa.md) (multi-Task pass).
 
 ```markdown
 # QA Sign-off: <task-id>

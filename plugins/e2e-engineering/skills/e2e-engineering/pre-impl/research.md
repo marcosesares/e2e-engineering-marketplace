@@ -1,6 +1,6 @@
 # research — conditional
 
-Fires only when the task leans on external APIs / unfamiliar libs / unknown protocols. grill-me gates it. Skipped cleanly when not needed. Produces `.e2e-engineering/research.md`: sprint-lifetime cache, MAY ROT — flag it stale-able.
+Fires only when the task leans on external APIs / unfamiliar libs / unknown protocols. grill-with-docs gates it. Skipped cleanly when not needed. Produces `research.md` at the **Task root** (`.e2e-engineering/tasks/<id>/` multi-Task, `.e2e-engineering/` single-Task legacy — SKILL.md Step 1; written there directly, never base-then-copy): sprint-lifetime cache, MAY ROT — flag it stale-able.
 
 ## What to do
 - Investigate the specific external surface the task depends on: API contracts, lib capabilities/limits, auth, rate limits, version constraints, gotchas.

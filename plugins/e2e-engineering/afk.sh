@@ -27,7 +27,29 @@ set -euo pipefail
 AI="${AI:-claude}"
 SKILL="${SKILL:-/e2e-flight}"
 MAX_SESSIONS="${MAX_SESSIONS:-50}"
+# Runaway guard: max consecutive checkpoints on the SAME Task with no task-done.
+MAX_STUCK_CHECKPOINTS="${MAX_STUCK_CHECKPOINTS:-6}"
 CMD="${CMD:-}"
+
+# State dir holds queue.json, flight.log, flight.lock, flight-status.md.
+if [ -z "${STATE_DIR:-}" ]; then
+  if [ -d ".e2e-engineering" ]; then STATE_DIR=".e2e-engineering"; else STATE_DIR="$(cd "$(dirname "$0")" && pwd)"; fi
+fi
+LOG_FILE="$STATE_DIR/flight.log"
+LOCK_FILE="$STATE_DIR/flight.lock"
+
+# Duplicate-driver guard: refuse to start if a live driver already owns the lock.
+if [ -f "$LOCK_FILE" ]; then
+  existing_pid="$(head -n1 "$LOCK_FILE" 2>/dev/null || true)"
+  if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+    echo "[afk] Driver already running (PID $existing_pid). Not starting a second. Watch $LOG_FILE." >&2
+    exit 0
+  fi
+  rm -f "$LOCK_FILE"   # stale lock
+fi
+echo "$$" > "$LOCK_FILE"
+cleanup() { rm -f "$LOCK_FILE"; }
+trap cleanup EXIT
 
 case "$AI" in
   claude)   PRESET="claude --print --dangerously-skip-permissions \"$SKILL\"" ;;
@@ -42,19 +64,21 @@ esac
 export E2E_DRIVER=1
 
 session=0
+stuck_checkpoints=0   # consecutive checkpoints with no intervening task-done
 start_ts=$(date +%s)
 
-log() { printf '[afk %s] %s\n' "$(date +%H:%M:%S)" "$1"; }
+log() { printf '[afk %s] %s\n' "$(date +%H:%M:%S)" "$1" | tee -a "$LOG_FILE"; }
 
 log "Starting. AI=$AI MAX_SESSIONS=$MAX_SESSIONS SKILL=$SKILL"
 log "Command: $CMD"
+log "Console mirrored to $LOG_FILE · current state in $STATE_DIR/flight-status.md"
 
 while [ "$session" -lt "$MAX_SESSIONS" ]; do
   session=$((session + 1))
   log "Session $session/$MAX_SESSIONS"
 
-  # Capture full output while streaming it; keep only the tail for matching.
-  out="$(eval "$CMD" 2>&1 | tee /dev/stderr)"
+  # Capture full output while streaming it (to console + log); keep tail for matching.
+  out="$(eval "$CMD" 2>&1 | tee -a "$LOG_FILE" | tee /dev/stderr)"
   tail="$(printf '%s\n' "$out" | tail -n 30)"
 
   # Order matters: complete/stall terminal; task-done/checkpoint respawn.
@@ -74,11 +98,18 @@ while [ "$session" -lt "$MAX_SESSIONS" ]; do
   if printf '%s' "$tail" | grep -Eq '<e2e-task-done[[:space:]]+id="[^"]*"'; then
     id="$(printf '%s' "$tail" | grep -oE 'id="[^"]*"' | head -1)"
     log "Task done: $id. Next Task -> session $((session + 1))..."
+    stuck_checkpoints=0   # real forward progress — reset the runaway counter
     continue
   fi
 
   if printf '%s' "$tail" | grep -Eq '<e2e-checkpoint[[:space:]]+handoff="[^"]*"'; then
-    log "Checkpoint. Resuming same Task..."
+    stuck_checkpoints=$((stuck_checkpoints + 1))
+    log "Checkpoint ($stuck_checkpoints/$MAX_STUCK_CHECKPOINTS). Resuming same Task..."
+    if [ "$stuck_checkpoints" -ge "$MAX_STUCK_CHECKPOINTS" ]; then
+      log "RUNAWAY: $MAX_STUCK_CHECKPOINTS consecutive checkpoints, no Task completed. Stopping to avoid token burn."
+      log "Inspect $STATE_DIR/flight-status.md + handoff, then resume manually."
+      exit 4
+    fi
     continue
   fi
 

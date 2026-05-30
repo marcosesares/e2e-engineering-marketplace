@@ -1,6 +1,6 @@
 # Schema — progress.txt
 
-Append-only learnings log for one Task. **caveman:ultra** style (max compression, full technical substance). Sole writer = orchestrator, at fan-in. Append-only WITHIN a task; reset (overwrite empty) when a new task begins. Lives at task root (e.g. `.e2e-engineering/progress.txt`).
+Append-only learnings log for one Task. **caveman:ultra** style (max compression, full technical substance). Sole writer = orchestrator, at fan-in. Append-only WITHIN a task; reset (overwrite empty) when a new task begins. Lives at the **Task root**: `.e2e-engineering/tasks/<id>/progress.txt` multi-Task, `.e2e-engineering/progress.txt` single-Task legacy. Written there directly — never base-then-copy.
 
 Holds under parallelism because only the orchestrator writes it — subagents return summaries, never append directly.
 

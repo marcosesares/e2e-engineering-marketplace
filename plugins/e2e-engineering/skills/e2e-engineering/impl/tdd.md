@@ -9,7 +9,7 @@ Validate the story is implementable:
 - Acceptance criteria clear?
 - `testCases[]` present?
 - `depends_on` real and satisfied (the upstream code exists in this worktree)?
-Gap found → escalate ONE question to the orchestrator. DO NOT guess. (Distinct from grill-with-docs, which handled LANGUAGE once at entry. This catches under-spec; the red phase catches remaining behavioral ambiguity.)
+Gap found → escalate ONE question to the orchestrator. DO NOT guess. (Distinct from grill-with-docs, which handled LANGUAGE in pre-impl, before gate 1. This catches under-spec; the red phase catches remaining behavioral ambiguity.)
 
 ### 2. Red-green-refactor
 - **RED** — write a failing test FIRST, for the behavior in the acceptance criteria. Run it; confirm it fails for the right reason. **HARD GATE 2: no production code before a failing test.**

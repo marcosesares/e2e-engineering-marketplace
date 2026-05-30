@@ -1,6 +1,6 @@
 # Schema — prd.json
 
-Structured state for one Task. Written and owned by the orchestrator (sole writer). New task → overwrite fresh. Lives at task root (e.g. `.e2e-engineering/prd.json`).
+Structured state for one Task. Written and owned by the orchestrator (sole writer). New task → overwrite fresh. Lives at the **Task root**: `.e2e-engineering/tasks/<id>/prd.json` multi-Task, `.e2e-engineering/prd.json` single-Task legacy. Written there directly — never base-then-copy (dirty duplicates).
 
 ```json
 {

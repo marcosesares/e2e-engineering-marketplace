@@ -1,6 +1,6 @@
 # Schema — codebase-map.md
 
-Produced by `map-codebase` on brownfield tasks only. SCOPED to *this* change — not a global reverse-engineering artifact. Sprint-lifetime, may rot (like research.md). NOT C4/ERD/NxN matrices. Lives at task root (e.g. `.e2e-engineering/codebase-map.md`).
+Produced by `map-codebase` on brownfield tasks only. SCOPED to *this* change — not a global reverse-engineering artifact. Sprint-lifetime, may rot (like research.md). NOT C4/ERD/NxN matrices. Lives at the **Task root**: `.e2e-engineering/tasks/<id>/codebase-map.md` multi-Task, `.e2e-engineering/codebase-map.md` single-Task legacy. Written there directly — never base-then-copy.
 
 ## Template (exactly five sections)
 
@@ -26,6 +26,6 @@ Produced by `map-codebase` on brownfield tasks only. SCOPED to *this* change —
 ```
 
 ## Rules
-- Section 4 → grill-with-docs (language reconciliation, once at impl entry).
+- Section 4 → grill-with-docs (language reconciliation, in pre-impl — map-codebase runs just before it).
 - Section 5 is surface-only. Never actioned in this task. Protects scope discipline (constitution testing principle 4). README "de-slop" = a refactor Task fed by these candidates, never an AFK whole-repo refactor.
 - Greenfield tasks skip map-codebase entirely; no codebase-map.md is created.

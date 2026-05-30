@@ -17,17 +17,21 @@ Two triggers fire this skill:
 
 Never abort mid-task. The 65% signal means "next safe stop, not right now." Exceptions (checkpoint is immediate): already ≥ 65% at session start (resumed from compaction mid-flow, no in-flight work); OR a phase-boundary gate just passed (unconditional reset, the gate is the boundary).
 
-## What to write (three files)
+## What to write (three files — all at the Task root)
+All three live at the **Task root**: `.e2e-engineering/tasks/<id>/` in multi-Task mode, `.e2e-engineering/` single-Task legacy. Write directly there — never to base then copy.
 1. **prd.json** — already maintained live by the orchestrator. Ensure `status` of every story is current.
 2. **progress.txt** — caveman:ultra. Ensure Story Log / Pending Amendments / Blocked are up to date.
-3. **Handoff doc** — `.e2e-engineering/handoff-<phase>-<timestamp>.md`, GENERATED from prd.json + progress.txt (not hand-written). caveman:ultra. Self-contained primer:
+3. **Handoff doc** — `<Task root>/handoff-<phase>-<timestamp>.md`, GENERATED from prd.json + progress.txt (not hand-written). caveman:ultra. Self-contained primer:
 ```
 ## Domain language   # compressed glossary summary (enough to work; full CONTEXT.md pulled on demand)
 ## Current state     # phase, taskType, which stories done/todo/blocked
+## Worktrees         # `git worktree list` inventory: any in-flight slice worktree (story id → branch/path) so resume reconciles/tears down. Empty if none.
 ## Next action       # the very next concrete step
 ## Artifacts         # paths: prd.json, progress.txt, codebase-map?, research?, test-cases/
 ## Suggested skill   # which e2e-engineering sub-skill the fresh session should invoke
 ```
+
+Before ending: a CLEAN checkpoint happens at a fan-in boundary, so no slice worktree should be mid-flight — confirm each merged worktree was removed. Record any worktree still on disk under `## Worktrees` so the resuming session's worktree-reconciliation step tears it down (prevents the abandoned-worktree leak across a crash/compaction).
 
 ## Then — checkpoint instruction + HARD STOP
 
@@ -36,17 +40,17 @@ After writing the three files:
 1. Output this exact message to the user (first line states the trigger):
    ```
    <reason line> — checkpoint saved.
-   Handoff: .e2e-engineering/handoff-<phase>-<timestamp>.md
+   Handoff: <Task root>/handoff-<phase>-<timestamp>.md
 
    Resume (manual):
      1. /clear    ← reset context
      2. /e2e-engineering    ← fresh session reads handoff automatically
 
-   <e2e-checkpoint reason="<reason>" handoff=".e2e-engineering/handoff-<phase>-<timestamp>.md" />
+   <e2e-checkpoint reason="<reason>" handoff="<Task root>/handoff-<phase>-<timestamp>.md" />
    ```
    - 65% trigger: reason line = `Context at 65%+`, signal `reason="threshold"`.
    - Gate reset: reason line = `GATE <N> passed`, signal `reason="gate-<N>"` (N = 1, 4, or 5).
-   - Substitute actual handoff path in BOTH the Handoff line and the signal.
+   - Substitute the ACTUAL Task-root handoff path (`.e2e-engineering/tasks/<id>/handoff-…` multi-Task) in BOTH the Handoff line and the signal.
 2. **HARD STOP** — process NO further messages in this session. Any further user message gets one reply: "Checkpoint saved — `/clear` then `/e2e-engineering` to resume."
 
 > **Unattended automation (AFK wrapper):** `scripts/afk.ps1` detects `<e2e-checkpoint />` and restarts automatically. Run `.\scripts\afk.ps1` after gate 1 to enable AFK mode. Supports claude (default), opencode, codex via `-AI` param. (ADR 0005)
