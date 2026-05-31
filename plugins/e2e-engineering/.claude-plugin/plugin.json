@@ -1,6 +1,6 @@
 {
   "name": "e2e-engineering",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Master engineering orchestrator — drives a Task from idea to passing E2E across pre-implementation, implementation, and post-implementation phases. Phase-adaptive entry, hard gates (4 & 5 stubbed pending automation), vertical-slice TDD loop with parallel worktree subagents + expert-review wave. Headless implementation via /e2e-flight (one Task per spawn, no loop, no context monitoring — ADR 0022). Handles greenfield, feature, bugfix, refactor, plus a one-time adopt mode.",
   "author": {
     "name": "marcoscesar-bt"
