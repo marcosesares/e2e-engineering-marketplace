@@ -1,6 +1,6 @@
 ---
 name: e2e-engineering
-description: Master engineering orchestrator — drives a Task from idea to passing E2E across pre-implementation, implementation, and post-implementation phases. Detects phase and task type, sequences sub-skills, runs the vertical-slice TDD loop with parallel subagents, enforces five hard gates, and checkpoints at 65% context. Handles greenfield, feature, bugfix, and refactor on new or existing codebases, plus a one-time `adopt` mode for onboarding an in-progress project. Use when the user says "e2e-engineering", "e2e-eng", "ship-it", "ship it", "/e2e-engineering", "implement feature <name>", "write e2e for <feature>", "build this end to end", "run the full flow", or otherwise wants the complete engineering pipeline rather than a single isolated step.
+description: Interactive front door for the e2e-engineering flow — drives a Task from idea to an approved PRD (pre-implementation), launches headless implementation via /e2e-flight, and runs the human QA sign-off. Detects phase and task type, sequences sub-skills, plans the PRD with expert agents (UI designer / backend architect / DBA) so it is architecture-aware, and enforces the hard gates. Handles greenfield, feature, bugfix, and refactor on new or existing codebases, plus a one-time `adopt` mode for onboarding an in-progress project. Implementation itself runs in /e2e-flight (ADR 0022 — one Task per spawn, no loop, no context monitoring). Use when the user says "e2e-engineering", "e2e-eng", "ship-it", "ship it", "/e2e-engineering", "implement feature <name>", "write e2e for <feature>", "build this end to end", "run the full flow", or otherwise wants the complete engineering pipeline rather than a single isolated step.
 ---
 
 # e2e-engineering — orchestrator
@@ -32,7 +32,7 @@ Determine where to enter (phase-adaptive — user may start mid-flow):
 1. Does a `prd.json` exist at the relevant Task root (multi-Task: the in-progress Task under `tasks/<id>/`, found via queue.json; legacy: `.e2e-engineering/prd.json`)?
    - **No** → start Pre-implementation from the top.
    - **Yes** → read it. Any story `status != done` → resume Implementation. All `done` → Post-implementation.
-2. If a handoff doc exists at that Task root (`handoff-*.md`), this is a fresh-session resume → run [phase-transition](./cross/phase-transition.md) bootstrap FIRST (read handoff → prd.json → progress.txt → invoke suggested skill).
+2. Resuming a fresh session reads state, not a handoff (ADR 0022 — no checkpoint/handoff): `queue.json` (which Task) → `tasks/<id>/prd.json` (which slices done/todo/blocked) → `progress.txt` (tail for current state), then continue.
 3. **Task type** (set/confirm `taskType` in prd.json): `greenfield` (new app/codebase), `feature` (add to existing), `bugfix`, `refactor`. Refactor runs the FULL flow — no lite path (ADR 0012).
 4. **Greenfield vs brownfield**: greenfield skips map-codebase; brownfield (feature/bugfix/refactor on existing code) runs it.
 5. **Establish the Task root NOW (new feature, front-door flow).** Derive `<id>` = kebab-case feature slug from the request, confirm it with the user, and `mkdir .e2e-engineering/tasks/<id>/`. This is the Task root for the whole pre-impl sequence: map-codebase, grill-with-docs, research, to-prd all write their artifacts INTO it — never to base `.e2e-engineering/`. Set the id before the first artifact is produced (map-codebase is the first writer on brownfield). Single-Task legacy (inline, no queue intended) keeps the base root.
@@ -50,6 +50,7 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
 3. [research](./pre-impl/research.md) — only if task leans on external APIs / unfamiliar libs. Produces `research.md` (rots).
 4. [prototype](./pre-impl/prototype.md) — only if taste/UX/state-machine uncertainty needs concrete feedback. Throwaway. ui-branch or logic-branch.
 5. [to-prd](./pre-impl/to-prd.md) — convert grill-with-docs notes into the formal PRD → writes `prd.json`. Owns its own interview step (no double-interview). Refactor-shaped stories allowed. Captures testing-decisions that become test-cases.
+   - **Plan with expert agents → architecture-aware PRD.** Before finalizing, consult the expert reviewer agents as advisors against `ARCHITECTURE.md` + `constitution`: [backend-architect](../../agents/backend-architect.md) (layering/ownership/integration), [dba](../../agents/dba.md) (schema/migration shape), [ui-designer](../../agents/ui-designer.md) (component reuse/design-system). They surface the project's standards + ownership rules the PRD must respect (which seams to extend, which components to reuse) so the spec is right BEFORE gate 1 — the same agents later review the built slices in [/e2e-flight](../e2e-flight/SKILL.md). This is the interactive, human-reviewed half; flight's expert-review wave is the headless half.
 
 **HARD GATE 1 — PRD approved → implementation.** Present the PRD; require explicit human consent before any code. Do not proceed on silence. This is a STOP: emit the gate as a red-flags line and WAIT. Never infer approval from "looks good" on an earlier draft — consent is on the final PRD.
 
@@ -60,15 +61,15 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
 3. **Batch or launch?** Ask: *"Spec another feature, or launch flight now?"* — and STOP for the answer.
    - **Another** → loop back to Pre-implementation for the next feature — establish a NEW Task root (`tasks/<new-id>/`) first, then map-codebase? → grill-with-docs …. The queue grows. State this clearly so the human can stack a backlog before launching.
    - **Launch** → **Run-selection checkbox (HARD interactive STOP).** Present every `status:todo` Task with priority + dependsOn as an unchecked checklist and ASK the human which to drain THIS flight. **Do NOT pre-check all, do NOT assume "all", do NOT launch until the human returns a checked subset.** Only auto-additions allowed: an unmet `dependsOn` of a checked Task (warn: "billing-export needs auth-login — adding it"). Set `selected:true` ONLY on the human-chosen set (+ pulled-in deps). If the human checks nothing, do not launch.
-4. **Invoke [/e2e-flight](../e2e-flight/SKILL.md)** — once, for the whole selected set (never per-Task; that would spawn multiple drivers). Flight's Step 0 [E2E_DRIVER guard] self-bootstraps the [AFK wrapper](../../../scripts/afk.ps1) in a VISIBLE window (it refuses to launch a second if one is already running) and exits. This skill does NOT touch afk.ps1 directly. Tell the human: "Flight draining N Tasks in a new window — watch progress there, in `.e2e-engineering/flight.log`, or `.e2e-engineering/flight-status.md`. You're free to step away; run `/e2e-engineering` later to QA-sign-off."
+4. **Invoke [/e2e-flight](../e2e-flight/SKILL.md)** to start the first selected Task. **Flight implements ONE Task per invocation, then exits — there is no driver loop (ADR 0022).** To drain several selected Tasks, `/e2e-flight` is re-invoked once per Task (by the human, or a future thin re-invoker). Tell the human: "Flight will implement one Task per `/e2e-flight` run. I've kicked off `<id>`; re-run `/e2e-flight` for each remaining selected Task, then run `/e2e-engineering` to QA-sign-off. Watch progress by tailing `tasks/<id>/progress.txt`."
 
-Each flight spawn is a fresh context (the external equivalent of the gate-1 unconditional reset — ADR 0014/0015): pre-impl grilling never contaminates the impl loop because the impl loop runs in separate driver-spawned processes.
+Each `/e2e-flight` invocation is a fresh context: pre-impl grilling never contaminates implementation because implementation runs in separate spawns.
 
 ---
 
 ## Implementation phase
 
-Entry: PRD approved (gate 1 passed). **In multi-Task mode this phase runs inside [/e2e-flight](../e2e-flight/SKILL.md)** (driver-spawned, headless), scoped to the current Task's `tasks/<id>/`. The description below is canonical — flight reuses it verbatim per Task. Single-Task legacy mode may still run it inline here.
+Entry: PRD approved (gate 1 passed). **Implementation runs in [/e2e-flight](../e2e-flight/SKILL.md)** — one Task per spawn, headless, no loop, no context monitoring (ADR 0022). Flight owns the canonical per-spawn process (fan-out impl wave → expert-review wave → merge → self-review → defer QA); see its SKILL.md. The sub-steps below ([to-issues](./impl/to-issues.md), [tdd](./impl/tdd.md)) are shared building blocks flight uses. Single-Task legacy mode may still run a simplified inline version here — but with NO 65%/gate-reset checkpoint machinery (removed everywhere; ADR 0022 supersedes 0002/0014).
 
 1. [to-issues](./impl/to-issues.md) — split PRD into vertical slices, emit the `depends_on` DAG (tracer→schema→logic→api→ui as edges), author test-case `.md` docs upfront and attach `testCases[]` per story. Reads `ARCHITECTURE.md` (if present) to pin each story's `integration` decision (which existing owner/seam it extends) and to add `depends_on` edges between stories that would write the same file. Output is born `ready-for-agent` (skips triage).
 2. [triage](./impl/triage.md) — only for EXTERNALLY-sourced work (bug reports, feature requests) and walled refactor candidates. Forward-flow slices skip it.
@@ -98,21 +99,17 @@ Repeat until COMPLETE (all stories `status: done`):
    - **Remove the worktree** (`ExitWorktree` / `git worktree remove`) immediately after a successful merge — the worktree's life ends with the merge. Leaving it is the abandoned-worktree bug.
    - Write `status: done` in prd.json.
    - Append a `## Story Log` line to progress.txt. Stage durable learnings under `## Pending Amendments` (constitution OR ARCHITECTURE.md amendments — both ride this chain).
-4. **Checkpoint** if context ≥ 65% (see Cross-cutting). Then loop.
+4. Loop. (No checkpoint / context monitoring — ADR 0022. In flight, fan-out keeps the orchestrator chain small; this legacy inline loop just continues.)
 
 ### After COMPLETE
 
-**Before GATE 4 (65% in-phase net):** Check context. If ≥ 65%, write handoff + flush prd.json + progress.txt + end session per [context-checkpoint](./cross/context-checkpoint.md). Do not start the regression suite in a saturated context. (This is the threshold net, not a phase-boundary reset — the long impl loop may saturate before reaching gate 4.)
+No context monitoring, no checkpoint, no gate reset (ADR 0022 — removed everywhere). Proceed straight to the gate-4/5 steps. In flight these are the Step-4 e2e QA phase.
 
-4. [e2e-loop](./impl/e2e-loop.md) — FINAL pass. Automate the REGRESSION (cross-slice) test-cases now that the whole feature exists. Run the full accumulated suite.
-   - **HARD GATE 4 — E2E suite green → post-implementation.** Full suite must pass.
-
-**→ UNCONDITIONAL gate reset (after GATE 4, before GATE 5).** Flush prd.json + progress.txt, write handoff + end session per [context-checkpoint](./cross/context-checkpoint.md) — regardless of context %. Verification starts fresh. Rationale: gate 4 just ran the full regression suite (high token cost) and Playwright verification ahead is the highest-token-growth phase (BR-PLAYWRIGHT-01); a guaranteed clean break here is worth the re-bootstrap.
+4. [e2e-loop](./impl/e2e-loop.md) — author the REGRESSION (cross-slice) test-case docs now that the whole feature exists.
+   - **GATE 4 — full E2E suite green — STUBBED, pending automation (not deleted).** E2E journey automation is a `TODO` placeholder right now; only the TC docs are authored. When automation lands, this gate runs the full suite again.
 
 5. [verification](./impl/verification.md) — gate 5.
-   - **HARD GATE 5 — verification-before-completion.** Full suite re-run (all tests) + live exercise via `/run` + `/verify` + every PRD acceptance criterion ticked. Passing = implementation done.
-
-**→ UNCONDITIONAL gate reset (after GATE 5).** Checkpoint + end session per [context-checkpoint](./cross/context-checkpoint.md) — regardless of context %. Post-implementation starts fresh. This feeds the fresh-context review naturally: review.md already requires a clean reviewer with no impl-loop baggage.
+   - **GATE 5 — verification-before-completion — STUBBED, pending automation (not deleted).** Interim: self-review ticks the PRD acceptance criteria against the code; no live `/run`+`/verify` exercise while automation is stubbed + headless. The human-QA checklist is the interim verification net.
 
 ---
 
@@ -134,8 +131,8 @@ Task close (single-Task): extract durable learnings, ensure amendments resolved,
 | 1 | PRD approved → impl | HARD | end of pre-impl |
 | 2 | TDD red before green | HARD | in tdd.md per slice |
 | 3 | debug escalation (3 strikes → systematic-debugging → blocked → stall→human) | HARD | in loop |
-| 4 | E2E suite green → post-impl | HARD | e2e-loop |
-| 5 | verify-before-completion | HARD | verification |
+| 4 | E2E suite green → post-impl | STUBBED (pending automation; not deleted) | e2e-loop |
+| 5 | verify-before-completion | STUBBED (pending automation; interim: self-review + human checklist) | verification |
 | — | coverage / lint / style | SOFT | overridable WITH logged justification; silent skip not allowed |
 
 Hard gates need explicit human consent and surface as a red-flags line in their sub-skill. Never rationalize past a hard gate.
@@ -144,9 +141,7 @@ Hard gates need explicit human consent and surface as a red-flags line in their 
 
 ## Cross-cutting
 
-- **Checkpoint at 65% context** — [context-checkpoint](./cross/context-checkpoint.md): write handoff doc + prd.json + progress.txt (caveman:ultra), then end the session.
-- **Unconditional gate reset (gates 1, 4, 5)** — after each PHASE-BOUNDARY hard gate passes, checkpoint + end session REGARDLESS of context % (gate 1 = pre-impl→impl; gate 4 = before verification; gate 5 = impl→post-impl). Each phase starts in a fresh session — no cross-phase context contamination, deterministic. Gates 2/3 are per-slice/subagent-internal and DO NOT reset. See ADR 0014.
-- **65% in-phase net** — independent of the gate resets: within any phase, if context hits 65% mid-loop, checkpoint at the next fan-in boundary (the long impl loop may saturate before reaching gate 4). The gate resets are unconditional; the 65% net is the threshold safety valve between gates.
-- **Phase transition / fresh-session resume** — [phase-transition](./cross/phase-transition.md): read handoff → prd.json → progress.txt → invoke suggested skill. Do NOT read CONTEXT.md first (handoff carries a language summary; pull glossary on demand).
+- **No context monitoring (ADR 0022).** No 65% checkpoint, no unconditional gate reset, no handoff/respawn. The token fix is forced fan-out (sub-agents hold the heavy churn, return summaries), not checkpointing. Supersedes ADR 0002 (hook-based context monitoring) + ADR 0014 (gate-boundary resets). The 65% hook is disabled.
+- **Resume via state, not handoff.** A fresh session resumes by reading `queue.json` (which Task) → `tasks/<id>/prd.json` (which slices done/todo/blocked) → `progress.txt` (tail for current state). No handoff doc.
 - **ARCHITECTURE.md governance** — durable project-architecture map (schema: [architecture](./schemas/architecture.md)). Written ONLY in human phases: seeded/drafted in pre-impl (adopt, map-codebase, to-prd — human-reviewed) and amended at the post-impl human-QA gate. The automated implementation loop is READ-ONLY for it (to-issues pins from it, fan-out injects a scoped slice, quality-check checks against it). A subagent that spots architectural drift PROPOSES it in its summary; the orchestrator stages it as a `## Pending Amendment` — never edits ARCHITECTURE.md mid-loop. Same blast radius as the constitution (it shapes every future subagent), so same human-gated governance. See ADR 0013.
 - **Writing style:** generated state artifacts (progress.txt, handoff) = caveman:ultra. User-facing conversation = caveman:full. Code, commits, PRs = normal prose.

@@ -1,85 +1,111 @@
 ---
 name: e2e-flight
-description: Headless, driver-run worker that drains the e2e-engineering Task queue unattended. Spawned by an external driver (afk.ps1 / afk.sh) one process per Task-step; saves progress, resets context between steps, advances Task-to-Task on its own, and parks human-QA for a batched sign-off. Also directly invocable by a human (/e2e-flight) to bootstrap the driver. NOT the interactive front door — that is /e2e-engineering, which invokes this at gate-1 approve. Use when the user says "e2e-flight", "/e2e-flight", "flight", "drain the queue", "run the flight loop", or "implement the selected tasks".
+description: Headless implementation worker for the e2e-engineering flow. Implements exactly ONE Task from the queue then exits — no external loop, no context monitoring. Within the spawn it IS the orchestrator: fans out each slice to a sub-agent in its own worktree (impl wave), runs an expert-review wave before merge, then self-reviews and parks human-QA. Headless counterpart to the interactive front door /e2e-engineering. Use when the user says "e2e-flight", "/e2e-flight", "flight", "drain the queue", "run the flight loop", or "implement the selected tasks".
 ---
 
-# e2e-flight — headless Task-drain worker
+# e2e-flight — one-Task implementation worker
 
-Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). It is interactive + human; this is headless + driver-run. Drains the [Task queue](../e2e-engineering/schemas/queue.json.md) (`.e2e-engineering/queue.json`) one Task at a time. Read CONTEXT.md for any term. See ADR 0015 (external loop), 0016 (the split), 0017 (queue), 0018 (QA deferral), 0020 (this is a top-level skill so `/e2e-flight` resolves).
+Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md) (interactive + human: pre-impl + QA sign-off). This is headless implementation. Read CONTEXT.md for any term. Decision record: [ADR 0022](../../../docs/adr/0022-flight-one-task-per-spawn-no-loop-no-checkpoint.md). Process spec: [prototype/e2e-flight-process/design.md](../../../prototype/e2e-flight-process/design.md).
 
-**Runs ONE Task-step per process, then exits.** The external driver (the [AFK wrapper](../../../scripts/afk.ps1)) owns the loop — this skill never loops itself.
+**One Task per invocation, then exit.** No ralph driver loop, no respawn, no 65%/gate context monitoring. Re-invoke `/e2e-flight` to take the next Task. A Task finishes in one spawn or is left resumable via `queue.json`/`prd.json` status.
 
----
-
-## Step 0 — E2E_DRIVER guard (FIRST, always)
-
-Read env var `E2E_DRIVER`.
-
-- **UNSET → bootstrap mode.** A bare invocation (a human typed `/e2e-flight`, or `/e2e-engineering` called it at gate-1 approve). The driver isn't running yet. A human CAN invoke `/e2e-flight` directly — this branch is what makes that work (it bootstraps the driver). The skill the driver runs is `/e2e-flight` ONLY (never `/e2e-engineering /e2e-flight`).
-  1. **Already-running guard (no duplicate windows).** If `.e2e-engineering/flight.lock` exists AND names a live process, a driver is already draining — do NOT launch another. Tell the user where it is and exit. (afk.ps1 writes the lock on start, removes it on exit.) This stops the "several detached windows" failure.
-  2. Ensure the driver exists at `.e2e-engineering/`: if `.e2e-engineering/afk.ps1` (Windows) / `afk.sh` (POSIX) is absent, copy it from the shipped bundle. Resolve the bundle location in order: installed-plugin root (`<plugin>/afk.ps1`, alongside the skill), else source repo `scripts/afk.ps1`. Both are the same script.
-  3. Pick by platform: `$IsWindows` → `afk.ps1`, else `afk.sh`.
-  4. Launch in a VISIBLE window so the human can watch the work stream live: `Start-Process pwsh -ArgumentList '-NoExit','-File','.e2e-engineering/afk.ps1'` (or a new terminal running `bash .e2e-engineering/afk.sh`). Not hidden/minimized — visibility is the point.
-  5. Tell the user: "Flight draining N selected Tasks in a new window. Watch it there, or tail `.e2e-engineering/flight.log` (full console) / `.e2e-engineering/flight-status.md` (current Task → story → gate). The driver alerts you when done. You're free to step away."
-  6. **Exit.** Do NOT do Task work in this session (no driver env = not a worker).
-
-- **SET (=1) → worker mode.** The driver spawned this. Proceed to bootstrap + one Task-step below.
-
-This guard is also the nesting guard: worker sessions never re-spawn a driver.
+**The token rule (why this skill exists in this shape).** The blowup was fan-out *not firing* → 126 calls inline → 227-turn O(N²) chain. So fan-out is FORCED (Step 0) and inline slice-impl is a hard STOP (Step 3). Sub-agents hold the heavy tool calls and return summaries — that is what keeps this orchestrator's context small WITHOUT any checkpoint.
 
 ---
 
-## Worker bootstrap (E2E_DRIVER=1)
+## Step 0 — bootstrap + forcing mechanism (FIRST, always)
 
-Two-layer fresh-session read — Task-level THEN within-Task (extends [phase-transition](../e2e-engineering/cross/phase-transition.md)):
-
-1. Read `.e2e-engineering/queue.json`.
-2. **Which Task?**
-   - A Task has `status:in-progress` → **resume it** (single-in-progress invariant guarantees exactly one). Its dir is `.e2e-engineering/tasks/<id>/`.
-   - None in-progress → **pick next**: `selected:true` AND `status:todo` AND every `dependsOn` in {done, pending-qa}, lowest `priority` first. Flip it to `in-progress` in queue.json. This is its first step (no handoff yet).
-   - No pickable Task AND none in-progress → all selected work is pending-qa/done/blocked → emit `<e2e-complete stories="N" />` (N = count of selected Tasks) and exit.
-   - Selected Tasks remain but ALL are blocked or depend on blocked → emit `<e2e-stall reason="all-selected-blocked" />` and exit.
-3. **Within-Task bootstrap** (the existing sequence, rooted at `tasks/<id>/`): handoff-*.md → prd.json → progress.txt. Then continue the e2e-engineering flow for THIS Task.
-
-All per-Task state is under `tasks/<id>/`: `prd.json`, `progress.txt`, `handoff-*.md`, `qa-signoff.md`, `test-cases/`. Sole-writer rule still holds per Task.
+1. **Load the dispatch tools.** `ToolSearch` → load `Agent` and `EnterWorktree`. If either cannot be loaded, fan-out is impossible → emit `<e2e-stall reason="fanout-unavailable" />` and EXIT. NEVER fall back to doing slice work inline.
+2. No driver, no lock, no context monitoring. Do not write handoff docs, do not checkpoint, do not respawn.
+3. **Orchestrator output = caveman-ultra, essential only** (token discipline — your own chain is the cost).
 
 ---
 
-## One Task-step
+## Step 1 — pick ONE Task
 
-Run the e2e-engineering implementation + post-impl-automatable flow for the current Task, scoped to `tasks/<id>/`. The arc per Task:
+Read `.e2e-engineering/queue.json` (offset/limit — only what you need).
 
-**Visibility (do this throughout — headless ≠ silent).** Keep `.e2e-engineering/flight-status.md` current at every meaningful step: overwrite it with `Task <id> (<n>/<N> selected) · <phase/step> · story <sid> <state> · gate <G>` plus a one-line "doing now" and a timestamp. Write a fresh line at each fan-out, fan-in, gate, checkpoint, and block. This is the human's window into in-progress work — the user explicitly needs to SEE what flight is doing. The afk console (mirrored to `.e2e-engineering/flight.log`) carries the detail; flight-status.md is the at-a-glance current state.
+- The user named a Task → take it.
+- Else pick: `status:todo` AND every `dependsOn` in {done, pending-qa}, **highest priority** first. Flip it to `in-progress`.
+- No pickable Task → emit `<e2e-complete />` and EXIT.
 
-1. **Impl** — to-issues → the in-session slice loop (fan-out/fan-in, gates 2/3, worktree reconciliation + teardown). Identical to [/e2e-engineering](../e2e-engineering/SKILL.md) Implementation phase. (No grill step — language was reconciled in pre-impl grill-with-docs before gate 1; flight never grills, it's headless.)
-2. **GATE 4** — [e2e-loop](../e2e-engineering/impl/e2e-loop.md): regression suite, full suite green.
-3. **GATE 5 (automatable half)** — [verification](../e2e-engineering/impl/verification.md): full suite re-run + live exercise via `/run` + `/verify` + auto-tick PRD acceptance criteria. The HUMAN half (manual walk, visual judgment, sign-off) is DEFERRED.
-4. **review** — [review](../e2e-engineering/post-impl/review.md): fresh-context full-diff cross-slice audit.
-5. **Defer human-QA** — write `tasks/<id>/qa-signoff.md` ([schema](../e2e-engineering/schemas/qa-signoff.md)): Manual test cases, auto-verified ACs, staged pending amendments. Set queue `status: pending-qa`. Do NOT run [human-qa](../e2e-engineering/post-impl/human-qa.md) (needs a human).
-6. Emit `<e2e-task-done id="<id>" next="<next-selected-id-or-none>" />` and exit.
-
-### Context resets (within a Task)
-Honor the unconditional gate resets (gates 4, 5) and the 65% net exactly as /e2e-engineering does — but instead of "end session" the driver respawns. At each reset/checkpoint: write `tasks/<id>/handoff-*.md` + flush prd.json + progress.txt, then emit `<e2e-checkpoint handoff="..." reason="threshold|gate-N" />` and exit. The driver respawns → worker bootstrap finds this Task still `in-progress` → resumes. (Gate 1 reset does not apply — flight never runs pre-impl.)
+The Task root is `.e2e-engineering/tasks/<id>/`.
 
 ---
 
-## Signals (this skill emits → driver acts)
+## Step 2 — reconcile + read state
 
-| Signal | When | Driver |
-|---|---|---|
-| `<e2e-checkpoint handoff="..." reason="threshold\|gate-N" />` | 65% or gate 4/5 reset, Task unfinished | respawn → resume same Task |
-| `<e2e-task-done id="..." next="..." />` | Task → pending-qa, more selected remain | respawn → next Task |
-| `<e2e-stall reason="..." />` | no ready work / all selected blocked / needs human | stop, alert human |
-| `<e2e-complete stories="N" />` | no selected Task todo/in-progress | stop, success |
+Read (offset/limit, only needed sections): `tasks/<id>/prd.json` (the slice DAG) + `tasks/<id>/progress.txt`.
 
-Emit exactly ONE terminal signal per process, as the last output line.
+- **2.1 — structure missing/invalid** (no prd.json, no DAG, no test-cases): do NOT improvise a plan. Tell the user to plan it via `/e2e-engineering`, then EXIT.
+- **2.2 — prior in-progress/stall mess** (worktrees on disk, slices marked in-flight with no commit): propose analysis + reconciliation to the user and EXIT — do not blindly resume a dirty state.
+- **Clean reconcile** (within a clean resume): a slice marked in-flight with no commit → reset to `todo`. Then proceed.
 
 ---
+
+## Step 3 — per-slice loop (flight IS the orchestrator)
+
+Sole writer: only this orchestrator writes `prd.json` + `progress.txt`. Sub-agents return summaries.
+
+Repeat until the DAG is drained (every slice `done` or `blocked`):
+
+1. **Compute ready set** — slices whose `depends_on` are all `done` AND own `status: todo`.
+2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices were serialized by `depends_on` in to-issues). Inject: [constitution](../e2e-engineering/constitution.md) + the slice (acceptanceCriteria, sliceType, `integration` decision) + its testCases + (brownfield) a SCOPED slice of `ARCHITECTURE.md`.
+   - **GATE 2 (hard)** — failing test before production code (inside tdd).
+   - **GATE 3 (hard)** — 3 failed fixes → re-dispatch ONCE with [systematic-debugging](../e2e-engineering/impl/systematic-debugging.md); still red → mark slice `blocked`, keep draining.
+   - **DO NOT do slice-impl inline.** Orchestrator writing slice production code = hard red-flag STOP.
+3. **Expert-review wave (in the worktree, BEFORE merge).** Once a slice is green, dispatch role reviewer agents — picked by `sliceType` (token discipline, not all on every slice):
+   - schema/db → [dba](../../agents/dba.md) + [backend-architect](../../agents/backend-architect.md)
+   - api/logic → [backend-architect](../../agents/backend-architect.md) (+ [senior-qa](../../agents/senior-qa.md))
+   - ui → [ui-designer](../../agents/ui-designer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
+   - every slice → [senior-qa](../../agents/senior-qa.md) (AC coverage)
+
+   Each reviews the slice vs PRD + [constitution](../e2e-engineering/constitution.md) + (brownfield) the ARCHITECTURE slice, returns findings **Critical / Important / Minor**. Critical or Important → bounce to the impl sub-agent, re-review after fix. **Bounce cap = 3 round-trips** (mirrors gate 3) → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
+4. **lint + compile** — orchestrator COMMANDS (not agents). Run the project's lint + build/typecheck; reconcile failures in the branch before merge.
+5. **Merge** the slice branch → Task branch (resolve conflicts, never discard work). Remove the worktree immediately (`ExitWorktree`) — its life ends with the merge.
+6. **Record** — set slice `status: done` in prd.json; append the sub-agent summary to `progress.txt` (caveman-ultra, status-headed line). This is the fan-out ledger.
+
+---
+
+## Step 4 — e2e QA phase (task-level, after the DAG is drained)
+
+1. **Author e2e TC docs** — write the regression/cross-slice e2e test-cases: Steps, validations, and the automation backlog. `tasks/<id>/test-cases/` (caveman-ultra).
+2. **Automate e2e TCs** — **TODO placeholder.** [GATE 4 — full E2E suite green — STUBBED, pending automation. Not deleted.]
+3. **green → refactor** — **TODO placeholder.** [GATE 5 — live verification — STUBBED, pending automation. Not deleted.]
+
+---
+
+## Step 5 — self-review (whole task)
+
+Review the assembled Task against its acceptanceCriteria + [constitution](../e2e-engineering/constitution.md).
+
+- **5.1 pass** → mark the TASK `done` in `queue.json` + finalize `progress.txt`.
+- **5.2 fail** → **scoped** `git restore` of UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark the TASK `blocked` in `queue.json` with the unmet finding. Committed slices stay; the finding rides to human-QA.
+
+---
+
+## Step 6 — defer human-QA
+
+Write `tasks/<id>/qa-signoff.md` ([schema](../e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. Do NOT run [human-qa](../e2e-engineering/post-impl/human-qa.md) — it needs a human. `/e2e-engineering` owns the human review + replanning.
+
+---
+
+## Step 7 — exit
+
+Emit exactly one plain human-facing status as the last line: `<e2e-complete />` (queue has no more pickable Task), `<e2e-task-done id="<id>" />` (this Task done/blocked, more remain), or `<e2e-stall reason="..." />` (needs a human). No respawn — the human re-invokes for the next Task.
+
+---
+
+## Token hygiene (every spawn)
+- caveman-ultra for prose artifacts (`progress.txt`, `qa-signoff.md`, test-case `.md`). JSON (`prd.json`/`queue.json`) stays schema-bound.
+- offset/limit on all reads — only the sections you need; never re-read a whole file.
+- `progress.txt` = single append-only record; status-headed entries; tail for current state.
 
 ## Red flags (stop)
-- Doing Task work with `E2E_DRIVER` unset (you're a bootstrap invocation — launch the driver and exit).
-- Running [human-qa](../e2e-engineering/post-impl/human-qa.md) headless (it needs a human — defer to qa-signoff.md).
-- Looping over multiple Tasks in one process (one Task-step per process; the driver loops).
-- Marking a Task `done` (only the QA sign-off session does that; flight stops at `pending-qa`).
-- Re-spawning a driver from a worker session (the guard forbids it; nesting).
-- Touching another Task's `tasks/<id>/` state (only the current in-progress Task).
+- Doing slice-impl inline instead of dispatching a sub-agent (the blowup cause — Step 0 forces fan-out; inline = STOP).
+- Falling back to inline work when `Agent`/`EnterWorktree` won't load (stall + exit instead).
+- Re-introducing a loop / checkpoint / handoff / 65% monitoring (gone by design — ADR 0022).
+- Running [human-qa](../e2e-engineering/post-impl/human-qa.md) headless (needs a human — write qa-signoff.md instead).
+- `git restore` wiping already-merged slices on a late failure (scope it to uncommitted only).
+- Marking a Task `done` when self-review failed (mark `blocked`).
+- Touching another Task's `tasks/<id>/` state.

@@ -1,5 +1,7 @@
 # e2e-loop — FINAL regression pass (gate 4)
 
+> **GATE 4 STUBBED — pending E2E automation (ADR 0022, not deleted).** Right now flight only AUTHORS the regression test-case docs (steps + validations + automation backlog); steps 2–3 below (automate + run suite) are a `TODO` placeholder. This doc is the spec for when automation lands. Interim verification = expert review + lint/compile + self-review + human-QA checklist.
+
 Runs ONCE after the slice loop reaches COMPLETE (all stories `done`). Automates the REGRESSION (cross-slice) test-cases — the app-wide journeys that span multiple stories — because only now does the whole feature exist for such a journey to be written. Then runs the full accumulated suite. Provenance: ADR 0010 + playwright_project reference.
 
 ## What to do

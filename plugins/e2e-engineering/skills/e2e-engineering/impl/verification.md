@@ -2,12 +2,7 @@
 
 Final Implementation-phase check, AFTER E2E green (gate 4). Distinct from gate 4: gate 4 = automated E2E suite green; gate 5 = full suite re-run + LIVE exercise of the feature + every PRD acceptance criterion ticked. Catches what automated E2E misses — visual/interaction regressions, criteria not encoded as tests. Provenance: superpowers verification-before-completion. Wires existing harness skills — does NOT reimplement app launching.
 
-## Context check — mandatory before starting
-
-Before any step below, check current context size.
-
-- If context ≥ 65%: write handoff + flush prd.json + progress.txt, then end session per [context-checkpoint](../cross/context-checkpoint.md). Do NOT enter the Playwright loop. Fresh session picks up GATE 5 from handoff at ~20% context.
-- Live browser verification adds ~2–4K tokens per call (navigate + snapshot + screenshot + evaluate). A full acceptance-criteria walk runs 15–30 calls = 30–90K tokens. Entering at ≥ 65% guarantees compaction mid-flow (see BR-PLAYWRIGHT-01).
+> **GATE 5 STUBBED — pending E2E automation (ADR 0022, not deleted).** The live `/run`+`/verify` exercise below is a `TODO` placeholder while automation is stubbed + flight is headless. Interim: flight's self-review ticks the PRD acceptance criteria against the code, and the human-QA checklist walks the rest. This doc is the spec for when automation lands. No context monitoring (65% checkpoint removed).
 
 ## What to do
 1. **Full suite re-run** — ALL tests (not just changed slices). Confirm green from a clean state.

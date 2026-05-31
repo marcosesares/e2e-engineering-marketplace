@@ -22,8 +22,8 @@ Lives at `.e2e-engineering/queue.json`. The cross-Task ordering layer ABOVE per-
 
 ## Writers (disjoint fields, never concurrent — ADR 0017)
 - **/e2e-engineering** (interactive) CREATES entries at gate 1 and sets `priority`, `dependsOn`, `selected`, `parentTask`.
-- **/e2e-flight** (driver) FLIPS `status` only (todo → in-progress → pending-qa / blocked).
-- They never run at the same time: the interactive session fully exits before the driver starts.
+- **/e2e-flight** FLIPS `status` only (todo → in-progress → pending-qa / blocked / done). One Task per spawn, no driver loop (ADR 0022).
+- They never run at the same time: the interactive session fully exits before flight runs.
 
 ## Status lifecycle
 ```

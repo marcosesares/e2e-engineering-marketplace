@@ -38,7 +38,7 @@ Standing contract for how code and tests are written in this project. Injected i
 5. **Readability over defensive coding** in test code — a test is a spec a human reads; keep it linear and obvious, not robust-but-opaque.
 6. **Behavior, not implementation** — assert outcomes a stakeholder cares about, so the test survives a refactor that preserves behavior.
 
-7. **BR-PLAYWRIGHT-01: Playwright token budget** — Live browser verification (navigate + snapshot + screenshot + evaluate) costs ~2–4K tokens per call. A full acceptance-criteria walk runs 15–30 calls = 30–90K tokens. This is the highest token-growth phase in the engineering loop. The orchestrator MUST check context at ≥ 65% before starting any Playwright session; if over threshold, write handoff + end session rather than entering the browser loop.
+7. **BR-PLAYWRIGHT-01: Playwright token budget** — Live browser verification (navigate + snapshot + screenshot + evaluate) costs ~2–4K tokens per call. A full acceptance-criteria walk runs 15–30 calls = 30–90K tokens — the highest token-growth phase. (Currently a STUBBED gate-5 step pending automation — ADR 0022.) When it lands, run it in its OWN fresh spawn, never appended to a long implementation context. No 65%/handoff checkpoint mechanic (ADR 0022 removed context monitoring).
 
 ## How this is enforced
 - Every slice subagent receives this file in context.

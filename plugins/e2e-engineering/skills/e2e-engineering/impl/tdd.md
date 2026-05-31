@@ -2,6 +2,8 @@
 
 Runs INSIDE a fan-out subagent, in its own git worktree, for ONE story. Receives: the [constitution](../constitution.md), the story (acceptanceCriteria, sliceType, depends_on, `integration` decision), its feature test-cases, and — brownfield — a SCOPED slice of ARCHITECTURE.md (this layer's naming + the ownership rules touching this blast radius + relevant anti-patterns). Follow the `integration` decision and those conventions: EXTEND the named owner, match the naming pattern — do not invent a parallel class/file. Returns a SUMMARY ONLY — never writes prd.json/progress.txt/ARCHITECTURE.md (orchestrator is sole writer; ARCHITECTURE.md is human-phase-only). Provenance: mattpocock tdd + superpowers subagent-driven-development.
 
+**After you return green, the orchestrator runs an expert-review wave** (role agents: ui-designer / backend-architect / dba / senior-qa, picked by sliceType — ADR 0022) in this worktree before merge. Critical/Important findings bounce back to YOU for a fix, then re-review (cap 3 round-trips, then the slice is marked `blocked`). Write the slice to pass that review: follow the `integration` decision, match conventions, give every acceptance criterion a real-interface test.
+
 ## Sequence
 
 ### 1. Slice gap-check (FIRST move, before any TDD)
