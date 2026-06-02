@@ -1,31 +1,41 @@
 # Schema — codebase-map.md
 
-Produced by `map-codebase` on brownfield tasks only. SCOPED to *this* change — not a global reverse-engineering artifact. Sprint-lifetime, may rot (like research.md). NOT C4/ERD/NxN matrices. Lives at the **Task root**: `.e2e-engineering/tasks/<id>/codebase-map.md` multi-Task, `.e2e-engineering/codebase-map.md` single-Task legacy. Written there directly — never base-then-copy.
+Produced by `map-codebase` on brownfield tasks only. SCOPED to *this* change — not global reverse-engineering. Sprint-lifetime, may rot. NOT C4/ERD/NxN matrices. Lives at **Task root**: `.e2e-engineering/tasks/<id>/codebase-map.md` multi-Task, `.e2e-engineering/codebase-map.md` single-Task legacy. Written there directly — never base-then-copy.
 
-## Template (exactly five sections)
+## Template (index + five sections)
 
 ```markdown
 # Codebase Map — <task description>
 
-## 1. Blast-radius modules
-<modules/files this change touches or ripples into. Scoped, not the whole repo.>
+## §Index
+§1: L<start>–L<end>
+§2: L<start>–L<end>
+§3: L<start>–L<end>
+§4: L<start>–L<end>
+§5: L<start>–L<end>
 
-## 2. Seams
-<where tests attach: adapters, interfaces, injection points, boundaries the e2e/feature tests hook into.>
+## §1 Blast-radius modules
+<modules/files this change touches or ripples into. Scoped, not whole repo.>
 
-## 3. Local impact
-<concrete list of call sites / consumers affected by the change.>
+## §2 Seams
+<where tests attach: adapters, interfaces, injection points, boundaries.>
 
-## 4. Existing language
-<terms the code already uses for this domain. Fed to grill-with-docs to reconcile against CONTEXT.md glossary.>
+## §3 Local impact
+<concrete list of call sites / consumers affected by this change.>
 
-## 5. Refactor candidates  [NOT THIS TASK]
+## §4 Existing language
+<terms code already uses for this domain. Fed to grill-with-docs to reconcile against CONTEXT.md glossary.>
+
+## §5 Refactor candidates  [NOT THIS TASK]
 <shallow modules, missing seams, duplicated rules surfaced while mapping.>
-<WALLED: tagged NOT THIS TASK, routed to NEW issues via triage, human-gated into their own refactor Task.>
-<EXCLUDED from slice-subagent context. The orchestrator enforces the wall.>
+<WALLED: tagged NOT THIS TASK, routed to NEW issues via triage, human-gated into own refactor Task.>
+<EXCLUDED from slice-subagent context. Orchestrator enforces wall.>
 ```
 
+**§Index rule**: writer fills line numbers AFTER writing all sections. Readers (orchestrator, sub-agents) use `offset/limit` on the Read tool — fetch §1–§3 only via index, skip §4–§5 unless needed.
+
 ## Rules
-- Section 4 → grill-with-docs (language reconciliation, in pre-impl — map-codebase runs just before it).
-- Section 5 is surface-only. Never actioned in this task. Protects scope discipline (constitution testing principle 4). README "de-slop" = a refactor Task fed by these candidates, never an AFK whole-repo refactor.
-- Greenfield tasks skip map-codebase entirely; no codebase-map.md is created.
+- §4 → grill-with-docs (language reconciliation, pre-impl — map-codebase runs just before it).
+- §5 surface-only. Never actioned in this task. Protects scope discipline (constitution testing principle 4). README "de-slop" = refactor Task fed by these candidates.
+- Greenfield tasks skip map-codebase entirely; no codebase-map.md created.
+- Orchestrator reads §1–§3 ONCE in Step 2 (e2e-flight). No re-read per-slice or per-wave.

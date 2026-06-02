@@ -1,11 +1,11 @@
 # research — conditional
 
-Fires only when the task leans on external APIs / unfamiliar libs / unknown protocols. grill-with-docs gates it. Skipped cleanly when not needed. Produces `research.md` at the **Task root** (`.e2e-engineering/tasks/<id>/` multi-Task, `.e2e-engineering/` single-Task legacy — SKILL.md Step 1; written there directly, never base-then-copy): sprint-lifetime cache, MAY ROT — flag it stale-able.
+Fires only when task leans on external APIs / unfamiliar libs / unknown protocols. grill-with-docs gates it. Skipped cleanly when not needed. Produces `research.md` at **Task root** (`.e2e-engineering/tasks/<id>/` multi-Task, `.e2e-engineering/` single-Task legacy — SKILL.md Step 1; written there directly, never base-then-copy): sprint-lifetime cache, MAY ROT — flag stale-able.
 
 ## What to do
-- Investigate the specific external surface the task depends on: API contracts, lib capabilities/limits, auth, rate limits, version constraints, gotchas.
-- Use WebSearch/WebFetch for current docs; verify against the installed version, not memory.
-- Capture concrete findings the PRD and slices will rely on — endpoints, payload shapes, error modes, code-level examples.
+- Investigate specific external surface task depends on: API contracts, lib capabilities/limits, auth, rate limits, version constraints, gotchas.
+- Use WebSearch/WebFetch for current docs; verify against installed version, not memory.
+- Capture concrete findings PRD and slices will rely on — endpoints, payload shapes, error modes, code-level examples.
 
 ## Output `research.md`
 ```markdown
@@ -25,6 +25,6 @@ Fires only when the task leans on external APIs / unfamiliar libs / unknown prot
 ```
 
 ## Red flags (stop)
-- Researching things the task does not depend on (scope creep).
-- Treating research.md as durable truth — it rots; re-verify before a later task reuses it.
-- Recording library behavior from memory without checking the actual installed version.
+- Researching things task does not depend on (scope creep).
+- Treating research.md as durable truth — it rots; re-verify before later task reuses it.
+- Recording library behavior from memory without checking actual installed version.
