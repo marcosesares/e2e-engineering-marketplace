@@ -62,13 +62,13 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - **GATE 3 (hard)** — 3 failed fixes → re-dispatch ONCE with [systematic-debugging](../e2e-engineering/impl/systematic-debugging.md); still red → mark slice `blocked`, keep draining.
    - **DO NOT do slice-impl inline.** Orchestrator writing slice production code = hard red-flag STOP.
 
-3. **Expert-review wave (in worktree, BEFORE merge).** Slice green → dispatch role reviewer agents by `sliceType`:
+3. **Expert-review wave (in worktree, BEFORE merge).** Slice green → dispatch role reviewer agents **in parallel** by `sliceType` (all agents for a given slice fire simultaneously in one message):
    - schema/db → [dba](../../agents/dba.md) + [backend-architect](../../agents/backend-architect.md)
    - api/logic → [backend-architect](../../agents/backend-architect.md) + [senior-qa](../../agents/senior-qa.md)
    - ui → [ui-designer](../../agents/ui-designer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
    - every slice → [senior-qa](../../agents/senior-qa.md) (AC coverage)
 
-   Each reviews slice vs PRD + [constitution](../e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent, re-review after fix. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
+   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent, re-review after fix. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
 
 4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
 5. **Merge** slice branch → Task branch (resolve conflicts, never discard work). Remove worktree immediately (`ExitWorktree`) — life ends at merge.
