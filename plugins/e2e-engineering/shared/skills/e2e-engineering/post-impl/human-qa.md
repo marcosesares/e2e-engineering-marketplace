@@ -6,11 +6,29 @@ The single human-approval chokepoint of the whole flow. In ONE touch the human (
 - **Single-Task** (no `queue.json`): run the steps below once for the current task.
 - **Multi-Task QA sign-off session** (flight drained a [Task queue](../schemas/queue.json.md)): /e2e-flight deferred human-QA per Task, leaving each at `status:pending-qa` with a [qa-signoff.md](../schemas/qa-signoff.md). Walk ALL `pending-qa` Tasks here in ONE pass (priority order). For each Task, open its `tasks/<id>/qa-signoff.md` and run the steps below; then flip queue `status: pending-qa → done`. See ADR 0018.
 
+## Session setup
+- Read state in parallel when possible: `queue.json`, every pending Task's `qa-signoff.md`, and each Task's `progress.txt`.
+- If `qa-signoff.md` only lists TC ids/titles, open referenced `test-cases/*.md` and inline Preconditions, Steps, Expected. Do not ask human to open files.
+- If `qa-signoff.md` and `progress.txt` disagree on Pending Amendments, show union and label source.
+- Do not run implementation capability probe, worker spawn, or `/e2e-flight` from QA mode.
+
 ## What to do (per Task)
-1. **Manual script** — present the test-cases with disposition **Manual** (those with no E2E). For each: preconditions, steps, expected. The human walks them and records pass/fail. (Multi-Task: these are pre-listed in the Task's qa-signoff.md.)
+1. **Manual script** — present every Manual test-case body, in order, once. Include title, Preconditions, numbered Steps, and Expected. Preserve concrete endpoints/statuses/badges/messages. Do NOT collapse to titles. Do NOT omit network checks, restore steps, role checks, or status assertions. The human walks them and records pass/fail.
 2. **Pending Amendments** — present the `## Pending Amendments` staged in progress.txt (durable learnings extracted across the task, incl. architecture drift subagents proposed mid-loop). For each, the human routes it: **promote → [constitution](../constitution.md)** if generic (bump version + changelog), **promote → ARCHITECTURE.md** if project-specific structure/ownership/naming/convention, or **drop**. (This is the one human-write phase for ARCHITECTURE.md besides pre-impl seeding.)
 3. **Findings → issues** — log any QA finding in the Task's qa-signoff.md `## Findings`, then route each through [triage](../impl/triage.md) into a NEW queue Task: a **bug** → linked bugfix Task (`parentTask=<this id>`, `status:todo`, unselected) — the built Task STILL goes `done`, not reopened (it passed automated gates; the bug is new scope); a **new idea** → feature Task (`status:todo`, unselected). Findings re-enter the queue for a future flight (ADR 0018).
 4. Record QA sign-off (set qa-signoff.md `Status: APPROVED`, queue `status: done`).
+
+## User prompt shape
+Print one compact QA handoff, then wait.
+
+Required shape:
+- Header: `QA Sign-off Session — <task-id>` (or task count for multiple).
+- One-line state: `Task is pending-qa. <N> manual test cases to walk + <M> pending amendments to route.`
+- `Manual Test Cases`: full scripts. Use `TC-<n>: <title>` headings. No duplicate TC ids.
+- `Pending Amendment Decisions`: bullet each amendment with proposed target (`constitution`, `ARCHITECTURE.md`, or `drop?`) when inferable.
+- Final ask: `Report pass/fail per TC, any findings, and promote/drop decision for each amendment.`
+
+Do not approve, reject, edit `queue.json`, edit `qa-signoff.md`, or promote amendments until human gives results.
 
 ## Why batched here (not task-by-task)
 Pattern promotion is batched at this gate so the human never approves patterns one-task-at-a-time. progress.txt stays per-task scratch and resets on the next task; durable learnings survive only if promoted to the constitution here.

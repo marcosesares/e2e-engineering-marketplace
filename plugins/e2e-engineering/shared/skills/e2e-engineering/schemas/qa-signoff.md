@@ -7,8 +7,15 @@ Lives at `.e2e-engineering/tasks/<id>/qa-signoff.md`. Written by [/e2e-flight](.
 Status: PENDING            # PENDING | APPROVED | REJECTED
 
 ## Manual test cases (walk these)
-- [ ] TC-03 <journey name> — steps / expected
-- [ ] TC-07 ...
+### TC-03: <journey name>
+Preconditions: <env/data/login state>
+1. <action> → expect <observable result>
+2. <action> → expect <observable result>
+3. <restore/reset step when needed> → expect <baseline restored>
+
+### TC-07: <journey name>
+Preconditions: <env/data/login state>
+1. <action> → expect <observable result>
 
 ## PRD acceptance criteria (auto-verified — confirm visually)
 - [x] AC-1 <criterion>     # flight ticked via /verify
@@ -29,8 +36,13 @@ Status: PENDING            # PENDING | APPROVED | REJECTED
 ```
 
 ## Sections: flight fills vs human fills
-- **Flight fills** (headless): Manual test-case list (from prd.json testCases disposition Manual), AC list with auto-verified ticked, pending amendments staged from progress.txt.
+- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual, including Preconditions, Steps, Expected), AC list with auto-verified ticked, pending amendments staged from progress.txt.
 - **Human fills** (QA session): walks Manual cases, eyeballs visual ACs, decides each amendment, logs Findings, records Decision.
+
+## Manual case rules
+- Write full script bodies, not ids/titles only.
+- Preserve concrete endpoints, status codes, UI labels, role names, blocked/allowed assertions, and cleanup/restore steps.
+- One TC id once. No duplicate cases.
 
 ## Why deferred + batched
 Human-QA cannot run headless. Flight runs all automatable steps (gates 4, automated half of 5, review), parks human judgment here, sets Task `pending-qa`, continues to next Task. All checklists cleared in one batched session — mirrors pattern-promotion batching (ADR 0014 lineage). See ADR 0018.
