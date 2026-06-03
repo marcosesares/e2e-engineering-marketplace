@@ -1,0 +1,44 @@
+# tdd — SLICE SUBAGENT
+
+Runs INSIDE fan-out sub-agent, in own git worktree, for ONE story. Receives: [constitution](../constitution.md), story (acceptanceCriteria, sliceType, depends_on, `integration` decision), feature test-cases, (brownfield) SCOPED slice of ARCHITECTURE.md (this layer's naming + ownership rules touching blast radius + relevant anti-patterns — via §Index offset/limit). Follow `integration` decision and those conventions: EXTEND named owner, match naming pattern — do not invent parallel class/file. Returns SUMMARY ONLY — never writes prd.json/progress.txt/ARCHITECTURE.md (orchestrator is sole writer; ARCHITECTURE.md is human-phase-only).
+
+**After returning green, orchestrator runs expert-review wave** (role agents: frontend-reviewer / backend-architect / dba / test-reviewer, by sliceType — ADR 0022) in this worktree before merge. Critical/Important findings bounce back to YOU for fix, then re-review (cap 3 round-trips, then slice marked `blocked`). Write slice to pass that review: follow `integration` decision, match conventions, give every acceptance criterion real-interface test.
+
+## Sequence
+
+### 1. Slice gap-check (FIRST move, before any TDD)
+Validate story is implementable:
+- Acceptance criteria clear?
+- `testCases[]` present?
+- `depends_on` real and satisfied (upstream code exists in this worktree)?
+Gap found → escalate ONE question to orchestrator. DO NOT guess.
+
+### 2. Red-green-refactor
+- **RED** — write failing test FIRST for behavior in acceptance criteria. Run it; confirm fails for right reason. **HARD GATE 2: no production code before failing test.**
+- **GREEN** — write minimum production code to pass. Constitution: simplicity-first (new code), surgical-changes (editing existing).
+- **REFACTOR** — clean up with tests green. Stay in scope (no "while I'm here").
+
+### 3. Automate FEATURE e2e
+Automate story's **feature** test-case(s) as executable E2E in project stack (Playwright for web UI). Regression cases NOT yours — final e2e-loop handles cross-slice journeys. Map each E2E back to its test-case id.
+
+### 4. Debug escalation (HARD GATE 3)
+Fix fails 3 times → STOP. Do not blind-retry. Return to orchestrator reporting 3-strike. Orchestrator re-dispatches ONCE with [systematic-debugging](./systematic-debugging.md).
+
+## Return summary (to orchestrator)
+- Story id, what built, files touched.
+- Tests added (with test-case ids) + red→green evidence.
+- Constitution tensions / scope pressure resisted.
+- Durable learnings (candidate Pending Amendments).
+- **Architecture drift PROPOSED** — convention ARCHITECTURE.md doesn't cover, or looks wrong → say so here. Do NOT edit ARCHITECTURE.md — orchestrator stages it; human decides at QA gate.
+- Blockers / gap-check escalations.
+Keep tight — orchestrator reads summaries, not raw churn.
+
+## Red flags (stop)
+- Production code before failing test (gate 2 violation).
+- Guessing past gap instead of escalating one question.
+- Blind-retrying 4th time after 3 strikes (gate 3 violation).
+- Writing prd.json / progress.txt (sole-writer violation).
+- Automating regression/cross-slice journeys here (not this sub-agent's job).
+- Testing internal state instead of real interfaces (constitution testing principle 1).
+- Creating parallel class/file when `integration` decision or ARCHITECTURE.md names existing owner to extend.
+- Editing ARCHITECTURE.md (human-phase-only; propose drift in summary instead).

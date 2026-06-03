@@ -1,0 +1,36 @@
+{
+  "roles": {
+    "backend-architect": {
+      "claude_name": "backend-architect",
+      "description": "Senior back-end architect reviewer. Reviews ONE green slice in its worktree against the PRD, the constitution, and (brownfield) the scoped ARCHITECTURE.md before merge. Checks ownership/seams/integration, layering, coupling, API shape. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for api/logic/schema slices.",
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "model": null,
+      "sandbox_mode": "read-only",
+      "mcp_servers": []
+    },
+    "dba": {
+      "claude_name": "dba",
+      "description": "Database reviewer (DBA). Reviews ONE green schema/data slice in its worktree against the PRD, constitution, and (brownfield) scoped ARCHITECTURE.md before merge. Checks schema design, migrations, indexing, data integrity, query cost. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for schema/db slices.",
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "model": null,
+      "sandbox_mode": "read-only",
+      "mcp_servers": []
+    },
+    "frontend-reviewer": {
+      "claude_name": "frontend-reviewer",
+      "description": "UI/UX designer reviewer. Reviews ONE green ui slice in its worktree against the PRD, constitution, and (brownfield) scoped ARCHITECTURE.md before merge. Checks component reuse, design-system consistency, accessibility, states, responsive behavior. Read-only — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for ui slices.",
+      "tools": ["Read", "Grep", "Glob"],
+      "model": null,
+      "sandbox_mode": "read-only",
+      "mcp_servers": []
+    },
+    "test-reviewer": {
+      "claude_name": "test-reviewer",
+      "description": "Senior QA reviewer. Reviews EVERY green slice in its worktree against the PRD acceptanceCriteria and the testing principles before merge. Checks AC coverage, test quality (real-interface, diagnosable, no sleeps), edge cases. May run the slice tests. Read-only on production code — returns findings, never edits. Dispatched by /e2e-flight's expert-review wave for every slice.",
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "model": null,
+      "sandbox_mode": "read-only",
+      "mcp_servers": []
+    }
+  }
+}

@@ -5,7 +5,7 @@ description: Headless implementation worker for the e2e-engineering flow. Implem
 
 # e2e-flight — one-Task implementation worker
 
-Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementation. Read CONTEXT.md for any term. ADR: [0022](../../../docs/adr/0022-flight-one-task-per-spawn-no-loop-no-checkpoint.md). Process spec: [prototype/e2e-flight-process/design.md](../../../prototype/e2e-flight-process/design.md).
+Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementation. Read CONTEXT.md for any term. Governed by ADR 0022 and the e2e-flight process spec in the source repository.
 
 **One Task per invocation, then exit.** No loop, no respawn, no context monitoring. Re-invoke `/e2e-flight` for next Task. Task finishes in one spawn or stays resumable via `queue.json`/`prd.json` status.
 
@@ -49,30 +49,37 @@ Read (offset/limit, only needed sections): `tasks/<id>/prd.json` (slice DAG) + `
 
 ## Step 3 — per-slice loop (flight IS the orchestrator)
 
-Sole writer: only orchestrator writes `prd.json` + `progress.txt`. Sub-agents return summaries.
+Sole writer: only orchestrator writes `prd.json` + `progress.txt` + evidence sidecars (`manifests/<story-id>/`). Sub-agents return slice result manifests ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)); never touch shared state.
 
 Repeat until DAG drained (every slice `done` or `blocked`):
 
 1. **Compute ready set** — slices whose `depends_on` are all `done` AND own `status: todo`.
-2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../e2e-engineering/constitution.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections).
+2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections).
 
-   **Worktree env/config bootstrap** (immediately after `EnterWorktree`, before sub-agent dispatch). Copy cached docker env file list (from Step 2) into the worktree. Use `cp`/`Copy-Item`. Do NOT stage/commit these files — untracked, cleaned by `ExitWorktree`. Required file missing from main tree → sub-agent surfaces it as a blocker in summary, does not silently skip.
+   **Worktree env/config bootstrap** (immediately after `EnterWorktree`, before sub-agent dispatch). Copy cached docker env file list (from Step 2) into the worktree. Use `cp`/`Copy-Item`. Do NOT stage/commit these files — untracked, cleaned by `ExitWorktree`. Required file missing from main tree → sub-agent surfaces it as a blocker in slice result manifest, does not silently skip.
+
+   Sub-agents return **slice result manifest** ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)): `{ sliceId, status, summary, testsPassed, branch, findings[] }`.
 
    - **GATE 2 (hard)** — failing test before production code (inside tdd).
-   - **GATE 3 (hard)** — 3 failed fixes → re-dispatch ONCE with [systematic-debugging](../e2e-engineering/impl/systematic-debugging.md); still red → mark slice `blocked`, keep draining.
+   - **GATE 3 (hard)** — 3 failed fixes → re-dispatch ONCE with [systematic-debugging](../../shared/skills/e2e-engineering/impl/systematic-debugging.md); still red → mark slice `blocked`, keep draining.
    - **DO NOT do slice-impl inline.** Orchestrator writing slice production code = hard red-flag STOP.
 
 3. **Expert-review wave (in worktree, BEFORE merge).** Slice green → dispatch role reviewer agents **in parallel** by `sliceType` (all agents for a given slice fire simultaneously in one message):
    - schema/db → [dba](../../agents/dba.md) + [backend-architect](../../agents/backend-architect.md)
-   - api/logic → [backend-architect](../../agents/backend-architect.md) + [senior-qa](../../agents/senior-qa.md)
-   - ui → [ui-designer](../../agents/ui-designer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
-   - every slice → [senior-qa](../../agents/senior-qa.md) (AC coverage)
+   - api/logic → [backend-architect](../../agents/backend-architect.md) + [test-reviewer](../../agents/test-reviewer.md)
+   - ui → [frontend-reviewer](../../agents/frontend-reviewer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
+   - every slice → [test-reviewer](../../agents/test-reviewer.md) (AC coverage)
 
-   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent, re-review after fix. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
+   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }`. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent, re-review after fix. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
 
 4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
 5. **Merge** slice branch → Task branch (resolve conflicts, never discard work). Remove worktree immediately (`ExitWorktree`) — life ends at merge.
-6. **Record** — set slice `status: done` in prd.json; append sub-agent summary to `progress.txt` (caveman-ultra, status-headed line).
+6. **Record + persist sidecars** (sole writer):
+   - Write `tasks/<id>/manifests/<story-id>/slice-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)) from sub-agent's returned manifest.
+   - Write `tasks/<id>/manifests/<story-id>/review-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/review-result.json.md)) from combined reviewer results (all parallel reviewers for this slice).
+   - Update prd.json story: `resultManifestPath`, `reviewManifestPath` (paths relative to Task root), `status: done`.
+   - Append sub-agent summary to `progress.txt` (caveman-ultra, status-headed line).
+   - **Status authority:** orchestrator reconciles sidecar `status` at fan-in; prd.json is sole source of truth. Never copy sidecar status blindly.
 
 ---
 
@@ -86,7 +93,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
 ## Step 5 — self-review (whole task)
 
-Review assembled Task against acceptanceCriteria + [constitution](../e2e-engineering/constitution.md).
+Review assembled Task against acceptanceCriteria + [constitution](../../shared/skills/e2e-engineering/constitution.md).
 
 - **5.1 pass** → mark Task `pending-qa` in `queue.json` + finalize `progress.txt`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018).
 - **5.2 fail** → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json` with unmet finding. Committed slices stay; finding rides to human-QA.
@@ -95,7 +102,7 @@ Review assembled Task against acceptanceCriteria + [constitution](../e2e-enginee
 
 ## Step 6 — defer human-QA
 
-Write `tasks/<id>/qa-signoff.md` ([schema](../e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. Do NOT run [human-qa](../e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning.
+Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning.
 
 ---
 
@@ -116,7 +123,7 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Slice-impl inline instead of sub-agent dispatch (blowup cause — Step 0 forces fan-out; inline = STOP).
 - Fallback to inline when `Agent`/`EnterWorktree` won't load (stall + exit).
 - Re-introducing loop / checkpoint / handoff / 65% monitoring (ADR 0022 — gone).
-- Running [human-qa](../e2e-engineering/post-impl/human-qa.md) headless (write qa-signoff.md instead).
+- Running [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) headless (write qa-signoff.md instead).
 - `git restore` wiping already-merged slices (uncommitted only).
 - Marking Task `done` instead of `pending-qa` after self-review passes (Step 5.1 — ADR 0018).
 - Marking Task `done` when self-review failed (mark `blocked`).
