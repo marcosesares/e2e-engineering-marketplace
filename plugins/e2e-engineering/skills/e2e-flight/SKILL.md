@@ -59,7 +59,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
    **Worktree env/config bootstrap** (immediately after `EnterWorktree`, before sub-agent dispatch). Copy cached docker env file list (from Step 2) into the worktree. Use `cp`/`Copy-Item`. Do NOT stage/commit these files — untracked, cleaned by `ExitWorktree`. Required file missing from main tree → sub-agent surfaces it as a blocker in slice result manifest, does not silently skip.
 
-   Sub-agents return **slice result manifest** ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)): `{ sliceId, status, summary, testsPassed, branch, findings[] }`.
+   Sub-agents complete by returning evidence-pointer-first **slice result manifest** ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)): `{ sliceId, status, summary, testsPassed, branch, evidencePaths[], findings[] }`. Worker NEVER merges into the Task branch. Final worker message must not contain raw logs/diffs or long narrative.
 
    - **GATE 2 (hard)** — failing test before production code (inside tdd).
    - **GATE 3 (hard)** — 3 failed fixes → re-dispatch ONCE with [systematic-debugging](../../shared/skills/e2e-engineering/impl/systematic-debugging.md); still red → mark slice `blocked`, keep draining.
@@ -71,13 +71,13 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - ui → [frontend-reviewer](../../agents/frontend-reviewer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
    - every slice → [test-reviewer](../../agents/test-reviewer.md) (AC coverage)
 
-   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }`. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent, re-review after fix. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
+   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }`. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent for a fix commit, re-review after fix. Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
 
 4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
-5. **Merge** slice branch → Task branch (resolve conflicts, never discard work). Remove worktree immediately (`ExitWorktree`) — life ends at merge.
+5. **Merge** slice branch → Task branch. Orchestrator owns this merge (resolve conflicts, never discard work). Remove worktree immediately (`ExitWorktree`) — life ends at merge.
 6. **Record + persist sidecars** (sole writer):
    - Write `tasks/<id>/manifests/<story-id>/slice-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/slice-result.json.md)) from sub-agent's returned manifest.
-   - Write `tasks/<id>/manifests/<story-id>/review-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/review-result.json.md)) from combined reviewer results (all parallel reviewers for this slice).
+   - Write `tasks/<id>/manifests/<story-id>/review-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/review-result.json.md)) from combined reviewer results (all dispatched reviewers for this slice).
    - Update prd.json story: `resultManifestPath`, `reviewManifestPath` (paths relative to Task root), `status: done`.
    - Append sub-agent summary to `progress.txt` (caveman-ultra, status-headed line).
    - **Status authority:** orchestrator reconciles sidecar `status` at fan-in; prd.json is sole source of truth. Never copy sidecar status blindly.

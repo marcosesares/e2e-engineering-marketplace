@@ -32,6 +32,7 @@ Structured state for one Task. Written and owned by orchestrator (sole writer). 
 ## Evidence sidecar layout
 Sidecar files at Task root: `manifests/<story-id>/`. Written by orchestrator at fan-in, NEVER by sub-agents.
 - `slice-result.json` ([schema](slice-result.json.md)) — written after impl fan-in; pointer in `resultManifestPath`
+- `review-bundle.json` ([schema](review-bundle.json.md)) — written before expert-review dispatch; prompt input, not status authority
 - `review-result.json` ([schema](review-result.json.md)) — written after review fan-in; pointer in `reviewManifestPath`
 - `verification-result.json` ([schema](verification-result.json.md)) — GATE 5 (stubbed); no pointer in prd.json until automation lands
 

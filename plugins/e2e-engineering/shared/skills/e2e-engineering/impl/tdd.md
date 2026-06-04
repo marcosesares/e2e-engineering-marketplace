@@ -1,6 +1,6 @@
 # tdd — SLICE SUBAGENT
 
-Runs INSIDE fan-out sub-agent, in own git worktree, for ONE story. Receives: [constitution](../constitution.md), story (acceptanceCriteria, sliceType, depends_on, `integration` decision), feature test-cases, (brownfield) SCOPED slice of ARCHITECTURE.md (this layer's naming + ownership rules touching blast radius + relevant anti-patterns — via §Index offset/limit). Follow `integration` decision and those conventions: EXTEND named owner, match naming pattern — do not invent parallel class/file. Returns SUMMARY ONLY — never writes prd.json/progress.txt/ARCHITECTURE.md (orchestrator is sole writer; ARCHITECTURE.md is human-phase-only).
+Runs INSIDE fan-out sub-agent, in own git worktree, for ONE story. Receives: [constitution](../constitution.md), story (acceptanceCriteria, sliceType, depends_on, `integration` decision), feature test-cases, (brownfield) SCOPED slice of ARCHITECTURE.md (this layer's naming + ownership rules touching blast radius + relevant anti-patterns — via §Index offset/limit). Follow `integration` decision and those conventions: EXTEND named owner, match naming pattern — do not invent parallel class/file. Returns evidence-pointer-first manifest only — never writes prd.json/progress.txt/ARCHITECTURE.md or authoritative sidecars (orchestrator is sole writer; ARCHITECTURE.md is human-phase-only).
 
 **After returning green, orchestrator runs expert-review wave** (role agents: frontend-reviewer / backend-architect / dba / test-reviewer, by sliceType — ADR 0022) in this worktree before merge. Critical/Important findings bounce back to YOU for fix, then re-review (cap 3 round-trips, then slice marked `blocked`). Write slice to pass that review: follow `integration` decision, match conventions, give every acceptance criterion real-interface test.
 
@@ -24,20 +24,21 @@ Automate story's **feature** test-case(s) as executable E2E in project stack (Pl
 ### 4. Debug escalation (HARD GATE 3)
 Fix fails 3 times → STOP. Do not blind-retry. Return to orchestrator reporting 3-strike. Orchestrator re-dispatches ONCE with [systematic-debugging](./systematic-debugging.md).
 
-## Return summary (to orchestrator)
-- Story id, what built, files touched.
-- Tests added (with test-case ids) + red→green evidence.
-- Constitution tensions / scope pressure resisted.
-- Durable learnings (candidate Pending Amendments).
-- **Architecture drift PROPOSED** — convention ARCHITECTURE.md doesn't cover, or looks wrong → say so here. Do NOT edit ARCHITECTURE.md — orchestrator stages it; human decides at QA gate.
-- Blockers / gap-check escalations.
-Keep tight — orchestrator reads summaries, not raw churn.
+## Return manifest (to orchestrator)
+Return compact JSON only: `sliceId`, `status`, one-line `summary`, `testsPassed`, `branch`, `evidencePaths[]`, `findings[]`.
+
+- Put detailed logs in normal test/build report paths or assigned per-slice evidence paths; return pointers only.
+- Include test-case ids and red→green proof in evidence artifacts, not chat.
+- Durable learnings / architecture drift go in `findings[]` as concise warnings. Do NOT edit ARCHITECTURE.md — orchestrator stages it; human decides at QA gate.
+- Blockers / gap-check escalations go in `findings[]` with `type:blocker`.
+- Keep final response tiny — orchestrator reads manifests, not raw churn.
 
 ## Red flags (stop)
 - Production code before failing test (gate 2 violation).
 - Guessing past gap instead of escalating one question.
 - Blind-retrying 4th time after 3 strikes (gate 3 violation).
 - Writing prd.json / progress.txt (sole-writer violation).
+- Returning raw test logs, full diffs, or long narrative instead of evidence paths.
 - Automating regression/cross-slice journeys here (not this sub-agent's job).
 - Testing internal state instead of real interfaces (constitution testing principle 1).
 - Creating parallel class/file when `integration` decision or ARCHITECTURE.md names existing owner to extend.

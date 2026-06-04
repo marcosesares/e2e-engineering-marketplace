@@ -28,7 +28,7 @@ Individual reviewer return shape (never written to disk by reviewer — passed b
 ## Invariants
 - `reviews[]` contains one entry per reviewer dispatched for this slice.
 - `findings[]` empty array if reviewer found nothing. Absence of entry means reviewer was not dispatched (sliceType routing).
-- Written after all parallel reviewers return — orchestrator holds findings in memory until fan-in complete.
+- Written after all dispatched reviewers return — orchestrator holds findings in memory until fan-in complete.
 - Orchestrator updates `prd.json` story's `reviewManifestPath` after writing this file.
 - Path in prd.json is relative to Task root: `manifests/<story-id>/review-result.json`.
 - Critical/Important bounces are tracked in `progress.txt`, not re-written to this sidecar per bounce; final post-bounce state is persisted once.
