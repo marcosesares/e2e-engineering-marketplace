@@ -27,8 +27,12 @@ Sibling to [/e2e-engineering](../e2e-engineering/SKILL.md). Headless implementat
 Read `.e2e-engineering/queue.json` (offset/limit — only what you need).
 
 - User named Task → take it.
-- Else pick: `status:todo` AND every `dependsOn` in {done, pending-qa}, highest priority first. Flip to `in-progress`.
+- Else pick: `status:todo` AND every `dependsOn` in {done, pending-qa}, highest priority first.
 - No pickable Task → `<e2e-complete />` + EXIT.
+
+**Master-clean check.** `git status` on master — any uncommitted changes → `<e2e-stall reason="master-dirty — commit or clean before flight" />` + EXIT.
+
+**Task lock + branch.** Commit `queue.json` status `todo→in-progress` to master. Then `git checkout -b task/<id>` from master. Orchestrator works on `task/<id>` throughout. Sub-agents work in isolated worktrees. Master not touched again until Step 5.1.
 
 Task root: `.e2e-engineering/tasks/<id>/`.
 
@@ -44,7 +48,7 @@ Read (offset/limit, only needed sections): `tasks/<id>/prd.json` (slice DAG) + `
 
 **Docker env cache (brownfield/docker projects).** Read `docker-compose.yml` (+ `docker-compose.override.yml` if present) ONCE. Extract required env/config files: `env_file` entries + volume-mounted config paths. Cache this list — used by every `EnterWorktree` call in Step 3. Do NOT re-read per slice.
 
-**Codebase-map read (brownfield only).** If `tasks/<id>/codebase-map.md` exists, read §1–§3 ONCE here (use §Index at top of file for offset/limit). Hold in orchestrator context. Do NOT re-read in Steps 3 or 4.
+**Codebase-map (brownfield only).** Missing `tasks/<id>/codebase-map.md` → `<e2e-stall reason="codebase-map-missing — pre-impl incomplete, run /e2e-engineering" />` + EXIT. Do NOT cold-read source files to compensate. If present: read §1–§3 ONCE (§Index for offset/limit). Hold in context. Do NOT re-read in Steps 3 or 4.
 
 ---
 
@@ -71,7 +75,16 @@ Repeat until DAG drained (every slice `done` or `blocked`):
    - ui → [frontend-reviewer](../../agents/frontend-reviewer.md) + frontend lens of [backend-architect](../../agents/backend-architect.md)
    - every slice → [test-reviewer](../../agents/test-reviewer.md) (AC coverage)
 
-   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }`. Findings: **Critical / Important / Minor**. Critical/Important → bounce to impl sub-agent for a fix commit, re-review after fix. Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
+   **Reviewer context injection.** Before dispatching, read method signatures (not bodies) of existing test files touched by this slice. Inject as `existingTests[]` in each reviewer prompt. Reviewers must cite a specific line/test proving a coverage gap before assigning Critical — orchestrator rejects un-evidenced Criticals without bounce.
+
+   Reviewers are read-only and independent — always parallel, never serial. Each reviews slice vs PRD + [constitution](../../shared/skills/e2e-engineering/constitution.md) + (brownfield) ARCHITECTURE slice + `existingTests[]`. Each returns **reviewer result**: `{ reviewerId, sliceId, findings[] }`. Findings: **Critical / Important / Minor**.
+
+   **Three-tier bounce.** On Critical/Important finding requiring a fix:
+   - **Mechanical** (rename/reformat/comment only — zero logic lines changed, verifiable by diff) → impl worker fixes; orchestrator logs `"skip re-review: mechanical, diff confirms no logic change"`. No re-review dispatched.
+   - **Limited** (non-mechanical, no logic change) → re-dispatch triggering reviewer only.
+   - **Logic change** → full re-review wave.
+
+   Reviewers never fix or merge. **Bounce cap = 3 round-trips** → still failing → mark slice `blocked`, tear down worktree, keep draining. Minor → note, don't block.
 
 4. **lint + compile** — orchestrator commands (not agents). Run project lint + build/typecheck; reconcile failures before merge.
 5. **Merge** slice branch → Task branch. Orchestrator owns this merge (resolve conflicts, never discard work). Remove worktree immediately (`ExitWorktree`) — life ends at merge.
@@ -96,7 +109,7 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
 Review assembled Task against acceptanceCriteria + [constitution](../../shared/skills/e2e-engineering/constitution.md).
 
-- **5.1 pass** → mark Task `pending-qa` in `queue.json` + finalize `progress.txt`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018).
+- **5.1 pass** → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018).
 - **5.2 fail** → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json` with unmet finding. Committed slices stay; finding rides to human-QA.
 
 ---
@@ -131,3 +144,7 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Re-reading docker config or codebase-map per-slice (read ONCE in Step 2).
 - Staging/committing env/config files in worktree branch (untracked only).
 - Touching another Task's `tasks/<id>/` state.
+- git stash during flight — no stash ever; master artifacts committed at clean boundaries only.
+- Touching master after task branch created, except the two targeted `queue.json` commits (Step 1 lock + Step 5.1 pending-qa).
+- Cold-reading source files when `codebase-map.md` missing (stall instead — Step 2).
+- Dispatching full re-review wave for mechanical fixes (skip re-review per [[Three-tier bounce]]).

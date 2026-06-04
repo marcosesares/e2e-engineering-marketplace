@@ -56,7 +56,7 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
 
 **→ On consent: queue Task, then batch or launch.** Steps IN ORDER — each is human chokepoint, none auto-resolved:
 
-1. **Task body already in place** at `.e2e-engineering/tasks/<id>/`. Verify complete; do NOT copy/move from base `.e2e-engineering/`. `<id>` fixed at Step 1.
+1. **Task body + brownfield check.** Verify task body complete at `.e2e-engineering/tasks/<id>/`. Do NOT copy/move from base. `<id>` fixed at Step 1. **Brownfield only:** verify `tasks/<id>/codebase-map.md` exists — missing → stall: `"Pre-impl incomplete — run map-codebase first."` Do not queue without it.
 2. **Append to [queue.json](../../shared/skills/e2e-engineering/schemas/queue.json.md)** — entry `{ id, title, priority, dependsOn, status:todo, selected:false, parentTask:null }`. Ask human for `priority` + cross-Task `dependsOn` (camelCase). **New Tasks born `selected:false`** — selection only at checkbox in step 3.
 3. **Batch or launch?** Ask: *"Spec another feature, or launch flight now?"* — STOP for answer.
    - **Another** → loop back to Pre-implementation for next feature — establish NEW Task root first. Queue grows.
