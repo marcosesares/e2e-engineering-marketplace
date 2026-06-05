@@ -1,6 +1,6 @@
 {
   "name": "e2e-engineering",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Master engineering orchestrator: phase-adaptive flow, five hard gates, vertical-slice TDD loop with parallel subagents. Greenfield/feature/bugfix/refactor + adopt mode.",
   "skills": [
     { "path": "./skills/e2e-engineering" },
