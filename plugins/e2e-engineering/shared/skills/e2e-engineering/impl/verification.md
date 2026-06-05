@@ -10,11 +10,13 @@ Final Implementation-phase check, after the DAG drains. Blocks `done` (→ `pend
 3. Record into `verification-result.json` ([schema](../schemas/verification-result.json.md)); `method` = `automated` (suite) | `manual` (UI → human-QA) | `self-review` (code read).
 
 ## HARD GATE 5
-Suite green AND every AC mapped = implementation done → hand to post-implementation (`pending-qa`). UI ACs are mapped to Manual test-cases (proven later in human-QA), NOT exercised here.
+Suite green AND every AC mapped = implementation done → `pending-qa`. UI ACs mapped to Manual test-cases (proven at human-QA), NOT exercised here.
+
+**Suite red or AC unmapped → do NOT block.** Record each failure in `verification-result.json` (status `partial`) AND write a `## Gate 5 Failures` section in `qa-signoff.md`. Proceed to `pending-qa`. Human routes each failure through triage into a new repair Task at QA sign-off (ADR 0025). `blocked` is reserved for Gate 3 exhausted stories — NOT for test failures.
 
 ## Red flags (stop)
 - Opening the app / `/run` / `/verify` for UI checks (removed — Fork Y; UI is human-QA's job).
-- Marking done on a red or partial suite.
-- AC with no implementing code path and no covering test (automated or Manual).
+- Marking Task `blocked` because Gate 5 suite is red (route to `pending-qa` + qa-signoff failures instead — ADR 0025).
+- AC with no implementing code path and no covering test (automated or Manual) — record as Gate 5 failure, do not block.
 - Re-running only changed slices instead of the full suite.
 - Claiming a UI AC "verified" by reading code beyond "a handler/route exists" (behavioral UI proof = human walk).

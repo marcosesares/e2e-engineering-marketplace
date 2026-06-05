@@ -107,7 +107,7 @@ Repeat until COMPLETE (all stories `status: done`):
 No context monitoring, no checkpoint, no gate reset (ADR 0022).
 
 4. [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md) — author cross-slice **UI regression test-case DOCS** (Manual → human-QA walk). **GATE 4 RETIRED (ADR 0024, Fork Y)** — UI not automated; no "E2E green" exit.
-5. [verification](../../shared/skills/e2e-engineering/impl/verification.md) — **HARD GATE 5 (ADR 0024):** full automated suite (unit + API) green + AC-checklist-vs-code (every AC maps to code + a covering automated test OR a Manual UI test-case). NO live-UI exercise. Executed in self-review. Blocks completion on red suite / unmapped AC.
+5. [verification](../../shared/skills/e2e-engineering/impl/verification.md) — **HARD GATE 5 (ADR 0024, ADR 0025):** full automated suite (unit + API) run + AC-checklist-vs-code. NO live-UI exercise. Failures recorded in `qa-signoff.md ## Gate 5 Failures` → Task proceeds to `pending-qa`; human routes each to a repair Task at QA sign-off. Does NOT mark `blocked` on test failure (ADR 0025).
 
 ---
 
@@ -130,7 +130,7 @@ Task close (single-Task): extract durable learnings, ensure amendments resolved,
 | 2 | TDD red before green | HARD | in tdd.md per slice |
 | 3 | debug escalation (3 strikes → systematic-debugging → blocked → stall→human) | HARD | in loop |
 | 4 | ~~E2E suite green → post-impl~~ | RETIRED (ADR 0024, Fork Y — UI not automated, verified in human-QA) | — |
-| 5 | verify-before-completion = full unit+API suite green + AC-vs-code (no live-UI) | HARD | verification, in self-review |
+| 5 | verify-before-completion = full unit+API suite run + AC-vs-code (no live-UI); failures → pending-qa + qa-signoff Gate 5 Failures, NOT blocked (ADR 0025) | HARD | verification, in self-review |
 | — | coverage / lint / style | SOFT | overridable WITH logged justification; silent skip not allowed |
 
 Hard gates need explicit human consent, surface as red-flags line in sub-skill. Never rationalize past hard gate.

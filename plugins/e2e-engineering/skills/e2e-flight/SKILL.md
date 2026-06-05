@@ -105,16 +105,16 @@ Run [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md): author cro
 
 ## Step 5 — verification (gate 5) + self-review (whole task)
 
-- **5.0 — HARD GATE 5 (verification-before-completion).** Run [verification](../../shared/skills/e2e-engineering/impl/verification.md): (a) full automated suite (unit + API/integration) green from clean state; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Write `manifests/_task/verification-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/verification-result.json.md)). **NO live-UI exercise** (no app launch — Fork Y). Red suite or unmapped AC → re-open loop / mark `blocked`; do NOT proceed.
+- **5.0 — HARD GATE 5 (verification-before-completion).** Run [verification](../../shared/skills/e2e-engineering/impl/verification.md): (a) full automated suite (unit + API/integration) green from clean state; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Write `manifests/_task/verification-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/verification-result.json.md)). **NO live-UI exercise** (no app launch — Fork Y). Red suite or unmapped AC → record failures, proceed to Step 5.1 (do NOT mark `blocked` — see ADR 0025).
 - Then review assembled Task against acceptanceCriteria + [constitution](../../shared/skills/e2e-engineering/constitution.md).
-- **5.1 pass** (gate 5 green + self-review clean) → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018).
-- **5.2 fail** → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json` with unmet finding. Committed slices stay; finding rides to human-QA.
+- **5.1** → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018). Applies whether gate 5 was fully green or had failures (failures ride to human-QA in qa-signoff.md).
+- **5.2 self-review hard fail** (constitution violation, not test failure) → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json`. Committed slices stay.
 
 ---
 
 ## Step 6 — defer human-QA
 
-Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning.
+Write `tasks/<id>/qa-signoff.md` ([schema](../../shared/skills/e2e-engineering/schemas/qa-signoff.md), caveman-ultra): manual test cases to walk, auto-verified ACs to eyeball, staged pending amendments. If gate 5 had failures, write `## Gate 5 Failures` section (each failing test/AC as a finding → triage entry for human to route into a new repair Task at QA sign-off). Do NOT run [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) — needs human. `/e2e-engineering` owns human review + replanning.
 
 ---
 
@@ -137,10 +137,11 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Re-introducing loop / checkpoint / handoff / 65% monitoring (ADR 0022 — gone).
 - Running [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) headless (write qa-signoff.md instead).
 - Automating UI with Playwright browser/POM, or opening the app for UI verification (Fork Y/ADR 0024 — UI is Manual → human-QA; automate unit+API only).
-- Marking `pending-qa` without gate 5 (Step 5.0): full unit+API suite green + every AC mapped.
+- Marking Task `blocked` because gate 5 suite is red (record failures in qa-signoff.md → pending-qa instead — ADR 0025).
+- Skipping `## Gate 5 Failures` section when gate 5 had failures (human needs them to route repair Tasks).
 - `git restore` wiping already-merged slices (uncommitted only).
 - Marking Task `done` instead of `pending-qa` after self-review passes (Step 5.1 — ADR 0018).
-- Marking Task `done` when self-review failed (mark `blocked`).
+- Marking Task `blocked` on self-review finding unless it's a constitution violation with no recoverable path.
 - Re-reading docker config or codebase-map per-slice (read ONCE in Step 2).
 - Staging/committing env/config files in worktree branch (untracked only).
 - Touching another Task's `tasks/<id>/` state.

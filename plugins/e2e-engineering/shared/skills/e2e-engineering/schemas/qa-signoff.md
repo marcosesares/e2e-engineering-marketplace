@@ -25,6 +25,12 @@ Preconditions: <env/data/login state>
 - constitution: <generic learning from progress.txt>
 - ARCHITECTURE.md: <project-specific structure/ownership/naming change>
 
+## Gate 5 Failures (-> triage -> repair Tasks)
+- (written by FLIGHT when gate 5 suite was red or an AC was unmapped — ADR 0025)
+  - test: <test name/file> — <failure reason>  -> human routes to new repair Task at QA sign-off
+  - ac:   <AC-id> <criterion>                  -> human routes to new repair Task at QA sign-off
+- (empty section when gate 5 was fully green)
+
 ## Findings (-> triage -> new queue Tasks)
 - (filled DURING QA session by human)
   - bug:  <desc>   -> new bugfix Task (parentTask=<this id>); this Task still goes done
@@ -36,8 +42,8 @@ Preconditions: <env/data/login state>
 ```
 
 ## Sections: flight fills vs human fills
-- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual — **all UI cases are Manual, Fork Y/ADR 0024**, incl. Preconditions, Steps, Expected), AC list with gate-5-auto-verified (unit/API-covered) ticked, pending amendments staged from progress.txt.
-- **Human fills** (QA session): walks Manual cases, eyeballs visual ACs, decides each amendment, logs Findings, records Decision.
+- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual — **all UI cases are Manual, Fork Y/ADR 0024**, incl. Preconditions, Steps, Expected), AC list with gate-5-auto-verified (unit/API-covered) ticked, pending amendments staged from progress.txt, Gate 5 Failures if any (ADR 0025).
+- **Human fills** (QA session): walks Manual cases, eyeballs visual ACs, decides each amendment, routes Gate 5 Failures through triage into repair Tasks, logs Findings, records Decision.
 
 ## Manual case rules
 - Write full script bodies, not ids/titles only.

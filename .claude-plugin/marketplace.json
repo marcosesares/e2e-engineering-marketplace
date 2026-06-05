@@ -6,13 +6,13 @@
   },
   "metadata": {
     "description": "Engineering flow skills — idea to passing E2E.",
-    "version": "1.5.4"
+    "version": "1.5.5"
   },
   "plugins": [
     {
       "name": "e2e-engineering",
       "source": "./plugins/e2e-engineering",
-      "description": "Master engineering orchestrator: phase-adaptive flow, hard gates (4 & 5 stubbed pending automation), vertical-slice TDD loop with parallel worktree subagents + expert-review wave. Greenfield/feature/bugfix/refactor + adopt mode. Headless implementation via /e2e-flight (one Task per spawn, no loop — ADR 0022).",
+      "description": "Master engineering orchestrator: phase-adaptive flow, five hard gates, vertical-slice TDD loop with parallel subagents, context checkpointing. Greenfield/feature/bugfix/refactor + adopt mode.",
       "category": "workflow"
     }
   ]

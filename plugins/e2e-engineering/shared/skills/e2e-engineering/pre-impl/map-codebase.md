@@ -28,6 +28,16 @@ While mapping, compare code against `ARCHITECTURE.md` (if exists):
 - No ARCHITECTURE.md yet → seed relevant sections from findings, human-reviewed. Write §Index after seeding.
 - §4 stays language-only; structure/ownership/naming live in ARCHITECTURE.md.
 
+### §4.1 test-pattern migration (brownfield, conditional)
+**If `ARCHITECTURE.md §4.1` already exists → skip this step entirely.** No re-scan, no re-question. §4.1 is authoritative.
+
+If §4.1 is absent: while mapping §2 Seams, detect existing test attachment layer:
+- **Mocked** (repo/service-layer mocks, no real-stack tests) — ask: *"Existing tests mock at [layer]. Skill standard is real-stack Playwright `request` against docker-compose (api-testing.md). Switch to skill standard for this project?"*
+  - Yes → seed §4.1 with skill's real-stack standard as the project convention. Future Gate 2 enforces real-stack tests.
+  - No → document current mock pattern in §4.1 explicitly (`Existing conventions: mocked at [layer]`). Slices follow it knowingly; test-reviewer flags as Important (not Critical) per api-testing.md.
+- **Real-stack already** (HTTP-level tests exist) → seed §4.1 documenting existing pattern (follow, don't replace).
+- **No tests found** → seed §4.1 with skill standard; note absence.
+
 ## Outputs feed
 - §4 → [grill-with-docs](./grill-with-docs.md) (very next step).
 - §1–§3 → [to-issues](../impl/to-issues.md) (slices respect existing seams).

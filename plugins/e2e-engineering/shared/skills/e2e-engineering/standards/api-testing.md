@@ -45,6 +45,7 @@ For any endpoint a slice implements: write the **failing** API test FIRST (asser
 Annotate each test with its test-case id (Playwright `annotation`), so test → TC id is auditable. Disposition = **Automated**.
 
 ## Red flags (stop)
+- **Mocked unit tests as Gate 2 substitute** — tests that mock at the repo/service layer (e.g. `@InjectMock`, `Mockito`, test doubles for the DB/session layer) do NOT satisfy Gate 2 for an API endpoint slice. Real-stack `request` test required. Mocking hides session/transaction/reactive context bugs (e.g. Hibernate Reactive concurrent session). Exception: ARCHITECTURE.md §4.1 explicitly documents mocked tests as the project standard.
 - Mocking the boundary you're verifying (`page.route` on the API under test) — that's not integration. Mock only third parties.
 - Hardcoded sleeps instead of web-first assertions / wait conditions.
 - Shared mutable fixtures across parallel slices (data contention) — isolate or serialize.
