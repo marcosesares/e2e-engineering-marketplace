@@ -34,7 +34,7 @@ Sidecar files at Task root: `manifests/<story-id>/`. Written by orchestrator at 
 - `slice-result.json` ([schema](slice-result.json.md)) — written after impl fan-in; pointer in `resultManifestPath`
 - `review-bundle.json` ([schema](review-bundle.json.md)) — written before expert-review dispatch; prompt input, not status authority
 - `review-result.json` ([schema](review-result.json.md)) — written after review fan-in; pointer in `reviewManifestPath`
-- `verification-result.json` ([schema](verification-result.json.md)) — GATE 5 (stubbed); no pointer in prd.json until automation lands
+- `verification-result.json` ([schema](verification-result.json.md)) — GATE 5 (active, ADR 0024); written at gate 5 (`manifests/_task/`); pointer in `verificationManifestPath`
 
 ## Invariants
 - **COMPLETE** = every story `status: "done"`. (Replaces Ralph's `passes: true`.)

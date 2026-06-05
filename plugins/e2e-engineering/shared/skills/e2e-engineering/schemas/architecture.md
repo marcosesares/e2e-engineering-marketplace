@@ -40,6 +40,16 @@ Durable, project-level reference: THIS project's structure + project-specific co
 ## §4 Integration patterns
 <API-client method shape; i18n key scheme/prefixes; how new endpoint/component plugs in.>
 
+### §4.1 Test architecture (Fork Y, ADR 0024 — REQUIRED before any API-bearing task launches)
+Seeded in pre-impl (human phase); flight READS, never writes. Baseline standard = [standards/api-testing.md](standards/api-testing.md); fill THIS project's actuals (they override the baseline):
+- **Unit runner:** <Vitest|Jest|...> + test dir/glob.
+- **API/integration:** Playwright `request` — config path (`playwright.config.*`), test dir, `baseURL`.
+- **Stack-up (M1):** how the running stack comes up for tests (docker-compose service(s), required env files, ports).
+- **Auth:** how an API test authenticates (token/storageState/setup project).
+- **Data isolation:** per-test seed/clean strategy; if none possible → API-test slices serialize.
+- **Existing conventions:** if the project already has API tests, point to them — follow, don't replace.
+- **UI:** Manual (no automation).
+
 ## §5 Anti-patterns / wrong routes
 <explicit "don't X, do Y" list. Traps fresh sub-agent would fall into.>
 <e.g. "DON'T create parallel resource class at existing URL path — extend owner.">

@@ -1,25 +1,21 @@
-# e2e-loop — FINAL regression pass (gate 4)
+# e2e-loop — task-level e2e QA pass (gate 4 RETIRED)
 
-> **GATE 4 STUBBED — pending E2E automation (ADR 0022, not deleted).** Flight only AUTHORS regression test-case docs (steps + validations + automation backlog); steps 2–3 below (automate + run suite) = `TODO` placeholder. This doc is spec for when automation lands. Interim verification = expert review + lint/compile + self-review + human-QA checklist.
+> **GATE 4 RETIRED — ADR 0024 (Fork Y).** UI E2E is NOT automated. No UI Playwright suite, no "E2E green" exit. This pass AUTHORS cross-slice UI regression test-case DOCS (Manual disposition) for the human-QA walk; it runs NO browser automation. Full automated suite (unit + API) green is checked at gate 5 ([verification](./verification.md)), not here.
 
-Runs ONCE after slice loop reaches COMPLETE (all stories `done`). Automates REGRESSION (cross-slice) test-cases — app-wide journeys spanning multiple stories — only now does whole feature exist for such journey. Then runs full accumulated suite.
+Runs ONCE after slice loop reaches COMPLETE (all stories `done`). Only now does the whole feature exist for cross-slice journeys.
 
 ## What to do
-1. Take **regression**-shape test-cases authored upfront by to-issues.
-2. Automate each as executable E2E in project stack (Playwright for web UI). These cross slices per-slice feature E2Es could not.
-3. Run FULL accumulated suite: feature E2Es (from slices) + new regression E2Es + unit/integration tests.
-4. Map each new E2E back to its test-case id (traceability).
+1. Take **regression**-shape (cross-slice) test-cases authored upfront by to-issues; flesh out full Manual scripts now the feature exists: Preconditions, Steps, Expected, restore step.
+2. Disposition = **Manual** — these feed the post-impl human-QA walk (`qa-signoff.md`). NO Playwright UI automation (Fork Y).
+3. Write into `tasks/<id>/test-cases/` (caveman-ultra). Map each to its test-case id.
 
-## HARD GATE 4 — E2E suite green → post-implementation
-Full suite must pass before leaving Implementation. Failure → re-opens loop:
-- Failure traces to specific story → re-dispatch that slice.
-- Failure is cross-slice (integration gap) → new slice or systematic-debugging.
-Do not proceed to post-impl on red or skipped suite.
+## API/integration regression (optional)
+A cross-slice **API** journey spanning stories MAY be automated here as a Playwright `request` test (stable, not brittle), same as in-slice API tests. UI journeys never — Manual only.
 
 ## Disposition
-Test-case with E2E = **Automated**. Left without = **Manual** → part of post-impl human-QA script. Record dispositions.
+unit + API/integration → **Automated** (Vitest / Playwright `request`, in-slice gate 2). All UI → **Manual** → human-QA script.
 
 ## Red flags (stop)
-- Automating regression journeys before feature COMPLETE (journey doesn't exist yet).
-- Skipping/ignoring red test to "move on" (gate 4 is hard).
-- Hardcoded sleeps instead of wait conditions (testing principle 3).
+- Automating any UI journey with Playwright browser/POM (Fork Y — UI is Manual).
+- Authoring regression journeys before feature COMPLETE (journey doesn't exist yet).
+- Hardcoded sleeps in any API test instead of wait conditions (testing principle 3).

@@ -59,7 +59,7 @@ Sole writer: only orchestrator writes `prd.json` + `progress.txt` + evidence sid
 Repeat until DAG drained (every slice `done` or `blocked`):
 
 1. **Compute ready set** — slices whose `depends_on` are all `done` AND own `status: todo`.
-2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections).
+2. **Fan-out impl wave** — dispatch each ready slice to its OWN git worktree + sub-agent (`EnterWorktree` + `Agent`). Run [tdd](../../shared/skills/e2e-engineering/impl/tdd.md). Parallel ONLY across disjoint file sets (same-file slices serialized by `depends_on` in to-issues). Inject: [constitution](../../shared/skills/e2e-engineering/constitution.md) + [api-testing standard](../../shared/skills/e2e-engineering/standards/api-testing.md) + slice (acceptanceCriteria, sliceType, `integration` decision) + testCases + (brownfield) SCOPED slice of `ARCHITECTURE.md` (use §Index for offset/limit on the relevant sections).
 
    **Worktree env/config bootstrap** (immediately after `EnterWorktree`, before sub-agent dispatch). Copy cached docker env file list (from Step 2) into the worktree. Use `cp`/`Copy-Item`. Do NOT stage/commit these files — untracked, cleaned by `ExitWorktree`. Required file missing from main tree → sub-agent surfaces it as a blocker in slice result manifest, does not silently skip.
 
@@ -97,19 +97,17 @@ Repeat until DAG drained (every slice `done` or `blocked`):
 
 ---
 
-## Step 4 — e2e QA phase (task-level, after DAG drained)
+## Step 4 — e2e QA pass (task-level, after DAG drained) — GATE 4 RETIRED (ADR 0024, Fork Y)
 
-1. **Author e2e TC docs** — write regression/cross-slice e2e test-cases: Steps, validations, automation backlog. `tasks/<id>/test-cases/` (caveman-ultra).
-2. **Automate e2e TCs** — **TODO placeholder.** [GATE 4 — full E2E suite green — STUBBED, pending automation. Not deleted.]
-3. **green → refactor** — **TODO placeholder.** [GATE 5 — live verification — STUBBED, pending automation. Not deleted.]
+Run [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md): author cross-slice **UI regression test-case DOCS** (Manual disposition → human-QA walk) now the whole feature exists. Full Manual scripts (Preconditions/Steps/Expected) → `tasks/<id>/test-cases/` (caveman-ultra). **NO UI automation** — UI is Manual (Fork Y). A cross-slice API journey MAY be automated as a Playwright `request` test; UI never. (No "E2E green" gate here — gate 4 retired; automated unit+API suite is checked at gate 5, Step 5.0.)
 
 ---
 
-## Step 5 — self-review (whole task)
+## Step 5 — verification (gate 5) + self-review (whole task)
 
-Review assembled Task against acceptanceCriteria + [constitution](../../shared/skills/e2e-engineering/constitution.md).
-
-- **5.1 pass** → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018).
+- **5.0 — HARD GATE 5 (verification-before-completion).** Run [verification](../../shared/skills/e2e-engineering/impl/verification.md): (a) full automated suite (unit + API/integration) green from clean state; (b) AC-checklist against code — every `acceptanceCriteria[]` maps to a code path AND a covering automated test (unit/API) OR a Manual test-case (UI). Write `manifests/_task/verification-result.json` ([schema](../../shared/skills/e2e-engineering/schemas/verification-result.json.md)). **NO live-UI exercise** (no app launch — Fork Y). Red suite or unmapped AC → re-open loop / mark `blocked`; do NOT proceed.
+- Then review assembled Task against acceptanceCriteria + [constitution](../../shared/skills/e2e-engineering/constitution.md).
+- **5.1 pass** (gate 5 green + self-review clean) → on `task/<id>` branch: finalize `progress.txt`. Then `git checkout master`, commit `queue.json` status `in-progress→pending-qa`, `git checkout task/<id>`. Do NOT set `done` — `done` requires human approval at QA gate (ADR 0018).
 - **5.2 fail** → scoped `git restore` UNCOMMITTED leftovers ONLY (never wipe already-merged slices) + mark Task `blocked` in `queue.json` with unmet finding. Committed slices stay; finding rides to human-QA.
 
 ---
@@ -138,6 +136,8 @@ Emit exactly one plain status as last line: `<e2e-complete />` (no more pickable
 - Fallback to inline when `Agent`/`EnterWorktree` won't load (stall + exit).
 - Re-introducing loop / checkpoint / handoff / 65% monitoring (ADR 0022 — gone).
 - Running [human-qa](../../shared/skills/e2e-engineering/post-impl/human-qa.md) headless (write qa-signoff.md instead).
+- Automating UI with Playwright browser/POM, or opening the app for UI verification (Fork Y/ADR 0024 — UI is Manual → human-QA; automate unit+API only).
+- Marking `pending-qa` without gate 5 (Step 5.0): full unit+API suite green + every AC mapped.
 - `git restore` wiping already-merged slices (uncommitted only).
 - Marking Task `done` instead of `pending-qa` after self-review passes (Step 5.1 — ADR 0018).
 - Marking Task `done` when self-review failed (mark `blocked`).

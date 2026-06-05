@@ -18,8 +18,8 @@ Preconditions: <env/data/login state>
 1. <action> → expect <observable result>
 
 ## PRD acceptance criteria (auto-verified — confirm visually)
-- [x] AC-1 <criterion>     # flight ticked via /verify
-- [ ] AC-4 <criterion>     # needs human eyes (visual / UX)
+- [x] AC-1 <criterion>     # gate-5 self-review: covered by automated unit/API test
+- [ ] AC-4 <criterion>     # UI — needs human eyes (Manual walk; not automated, Fork Y)
 
 ## Pending amendments (promote / drop)
 - constitution: <generic learning from progress.txt>
@@ -36,7 +36,7 @@ Preconditions: <env/data/login state>
 ```
 
 ## Sections: flight fills vs human fills
-- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual, including Preconditions, Steps, Expected), AC list with auto-verified ticked, pending amendments staged from progress.txt.
+- **Flight fills** (headless): full Manual test-case scripts (from prd.json testCases disposition Manual — **all UI cases are Manual, Fork Y/ADR 0024**, incl. Preconditions, Steps, Expected), AC list with gate-5-auto-verified (unit/API-covered) ticked, pending amendments staged from progress.txt.
 - **Human fills** (QA session): walks Manual cases, eyeballs visual ACs, decides each amendment, logs Findings, records Decision.
 
 ## Manual case rules
@@ -45,4 +45,4 @@ Preconditions: <env/data/login state>
 - One TC id once. No duplicate cases.
 
 ## Why deferred + batched
-Human-QA cannot run headless. Flight runs all automatable steps (gates 4, automated half of 5, review), parks human judgment here, sets Task `pending-qa`, continues to next Task. All checklists cleared in one batched session — mirrors pattern-promotion batching (ADR 0014 lineage). See ADR 0018.
+Human-QA cannot run headless. Flight runs all automatable steps (gate 5: full unit+API suite green + AC-vs-code, review), parks human judgment here — **UI walk is the human's job (no UI automation, Fork Y/ADR 0024)** — sets Task `pending-qa`, continues to next Task. All checklists cleared in one batched session — mirrors pattern-promotion batching (ADR 0014 lineage). See ADR 0018, ADR 0024.

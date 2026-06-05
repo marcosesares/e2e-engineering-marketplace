@@ -51,12 +51,13 @@ Sequence (bracketed = conditional): **[map-codebase? (brownfield)] → grill-wit
 4. [prototype](../../shared/skills/e2e-engineering/pre-impl/prototype.md) — only if taste/UX/state-machine uncertainty needs concrete feedback. Throwaway. ui-branch or logic-branch.
 5. [to-prd](../../shared/skills/e2e-engineering/pre-impl/to-prd.md) — convert grill-with-docs notes into formal PRD → writes `prd.json`. Owns own interview step (no double-interview). Refactor-shaped stories allowed. Captures testing-decisions → test-cases.
    - **Plan with expert agents → architecture-aware PRD.** Before finalizing, consult expert reviewer agents as advisors against `ARCHITECTURE.md` + `constitution`: [backend-architect](../../agents/backend-architect.md), [dba](../../agents/dba.md), [frontend-reviewer](../../agents/frontend-reviewer.md). Same agents later review built slices in [/e2e-flight](../e2e-flight/SKILL.md).
+   - **Seed test architecture → ARCHITECTURE.md §4 (Fork Y, ADR 0024).** Recognize (brownfield: from code) or define (greenfield) how the project runs tests: unit runner (Vitest/Jest) + layout; API/integration via Playwright `request` (config path, test dir, auth/setup). UI = Manual (no automation). Write into ARCHITECTURE.md (human phase). Flight READS this; never writes it.
 
 **HARD GATE 1 — PRD approved → implementation.** Present PRD; require explicit human consent before any code. Do not proceed on silence. STOP + WAIT. Never infer approval from "looks good" on earlier draft.
 
 **→ On consent: queue Task, then batch or launch.** Steps IN ORDER — each is human chokepoint, none auto-resolved:
 
-1. **Task body + brownfield check.** Verify task body complete at `.e2e-engineering/tasks/<id>/`. Do NOT copy/move from base. `<id>` fixed at Step 1. **Brownfield only:** verify `tasks/<id>/codebase-map.md` exists — missing → stall: `"Pre-impl incomplete — run map-codebase first."` Do not queue without it.
+1. **Task body + brownfield check.** Verify task body complete at `.e2e-engineering/tasks/<id>/`. Do NOT copy/move from base. `<id>` fixed at Step 1. **Brownfield only:** verify `tasks/<id>/codebase-map.md` exists — missing → stall: `"Pre-impl incomplete — run map-codebase first."` Do not queue without it. **API-bearing task (any api/logic story hitting an endpoint):** verify `ARCHITECTURE.md §4.1` test architecture filled (stack-up, baseURL, auth, data isolation) — empty → stall: `"Fill ARCHITECTURE.md §4.1 test architecture before launch (ADR 0024)."` Do not queue without it.
 2. **Append to [queue.json](../../shared/skills/e2e-engineering/schemas/queue.json.md)** — entry `{ id, title, priority, dependsOn, status:todo, selected:false, parentTask:null }`. Ask human for `priority` + cross-Task `dependsOn` (camelCase). **New Tasks born `selected:false`** — selection only at checkbox in step 3.
 3. **Batch or launch?** Ask: *"Spec another feature, or launch flight now?"* — STOP for answer.
    - **Another** → loop back to Pre-implementation for next feature — establish NEW Task root first. Queue grows.
@@ -86,7 +87,7 @@ Entry: PRD approved (gate 1 passed). **Implementation runs in [/e2e-flight](../e
 Repeat until COMPLETE (all stories `status: done`):
 
 1. **Compute ready set** — stories whose `depends_on` all `done` AND own `status: todo`.
-2. **Fan-out** — dispatch each ready story to OWN git worktree + subagent (`EnterWorktree`). Inject [constitution](../../shared/skills/e2e-engineering/constitution.md) + story (incl. `integration` decision) + testCases. Brownfield / ARCHITECTURE.md exists → also inject story's SCOPED slice of ARCHITECTURE.md (§Index for offset/limit — this layer's naming + ownership + anti-patterns, NOT whole doc). Subagent runs [tdd](../../shared/skills/e2e-engineering/impl/tdd.md): gap-check → red-green-refactor → automate FEATURE e2e → return compact manifest with `evidencePaths[]`.
+2. **Fan-out** — dispatch each ready story to OWN git worktree + subagent (`EnterWorktree`). Inject [constitution](../../shared/skills/e2e-engineering/constitution.md) + [api-testing standard](../../shared/skills/e2e-engineering/standards/api-testing.md) + story (incl. `integration` decision) + testCases. Brownfield / ARCHITECTURE.md exists → also inject story's SCOPED slice of ARCHITECTURE.md (§Index for offset/limit — this layer's naming + ownership + anti-patterns, NOT whole doc). Subagent runs [tdd](../../shared/skills/e2e-engineering/impl/tdd.md): gap-check → red-green-refactor (unit + API/integration via Playwright `request`; UI Manual, no automation — Fork Y) → return compact manifest with `evidencePaths[]`.
    - **HARD GATE 2 — TDD red before green.** Each subagent writes failing test before production code. Enforced inside tdd.md.
    - **HARD GATE 3 — debug escalation.** Subagent 3 failed fixes → orchestrator re-dispatches ONCE with [systematic-debugging](../../shared/skills/e2e-engineering/impl/systematic-debugging.md). Still red → mark story `blocked`, append `## Blocked` in progress.txt, keep draining. Escalate to human ONLY on stall. Emit `<e2e-stall reason="all-stories-blocked" />` before escalating.
 3. **Fan-in (orchestrator, serial — sole writer):** per returned summary, run per-slice review's two ordered stages, then merge-readiness check, then merge.
@@ -103,13 +104,10 @@ Repeat until COMPLETE (all stories `status: done`):
 
 ### After COMPLETE
 
-No context monitoring, no checkpoint, no gate reset (ADR 0022). Proceed to gate-4/5 steps.
+No context monitoring, no checkpoint, no gate reset (ADR 0022).
 
-4. [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md) — author REGRESSION (cross-slice) test-case docs now whole feature exists.
-   - **GATE 4 — full E2E suite green — STUBBED, pending automation (not deleted).** TC docs authored; automation = `TODO` placeholder.
-
-5. [verification](../../shared/skills/e2e-engineering/impl/verification.md) — gate 5.
-   - **GATE 5 — verification-before-completion — STUBBED, pending automation (not deleted).** Interim: self-review ticks PRD acceptance criteria against code; human-QA checklist walks rest.
+4. [e2e-loop](../../shared/skills/e2e-engineering/impl/e2e-loop.md) — author cross-slice **UI regression test-case DOCS** (Manual → human-QA walk). **GATE 4 RETIRED (ADR 0024, Fork Y)** — UI not automated; no "E2E green" exit.
+5. [verification](../../shared/skills/e2e-engineering/impl/verification.md) — **HARD GATE 5 (ADR 0024):** full automated suite (unit + API) green + AC-checklist-vs-code (every AC maps to code + a covering automated test OR a Manual UI test-case). NO live-UI exercise. Executed in self-review. Blocks completion on red suite / unmapped AC.
 
 ---
 
@@ -131,8 +129,8 @@ Task close (single-Task): extract durable learnings, ensure amendments resolved,
 | 1 | PRD approved → impl | HARD | end of pre-impl |
 | 2 | TDD red before green | HARD | in tdd.md per slice |
 | 3 | debug escalation (3 strikes → systematic-debugging → blocked → stall→human) | HARD | in loop |
-| 4 | E2E suite green → post-impl | STUBBED (pending automation; not deleted) | e2e-loop |
-| 5 | verify-before-completion | STUBBED (pending automation; interim: self-review + human checklist) | verification |
+| 4 | ~~E2E suite green → post-impl~~ | RETIRED (ADR 0024, Fork Y — UI not automated, verified in human-QA) | — |
+| 5 | verify-before-completion = full unit+API suite green + AC-vs-code (no live-UI) | HARD | verification, in self-review |
 | — | coverage / lint / style | SOFT | overridable WITH logged justification; silent skip not allowed |
 
 Hard gates need explicit human consent, surface as red-flags line in sub-skill. Never rationalize past hard gate.

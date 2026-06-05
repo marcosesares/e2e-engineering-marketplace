@@ -9,6 +9,7 @@ Converts grill-with-docs notes (+ research / prototype / codebase-map findings) 
 4. Per story: id, title, description, `acceptanceCriteria[]`, `priority`, `sliceType` (tracer|schema|logic|api|ui), `depends_on` (seed obvious edges; to-issues finalizes DAG), `status: todo`, `testCases: []` (to-issues authors these), notes.
 5. **Testing-decisions** — capture per story what behaviors must be verified and their shape (feature = story-level journey, regression = cross-slice journey). Become test-case `.md` docs to-issues authors and attaches.
 6. **ARCHITECTURE.md seed/update (if creating or amending it)** — write §Index line numbers AFTER writing all five sections. Required by schema so readers can use `offset/limit`.
+7. **Test architecture → §4.1 (Fork Y, ADR 0024).** Task implements any API/endpoint → §4.1 MUST be filled: unit runner, Playwright `request` config + `baseURL`, M1 stack-up (docker-compose), auth, data isolation. Recognize existing project API-test conventions and record them (they override the baseline). Empty §4.1 on an API-bearing task → gate-1 blocks launch.
 
 ## Refactor-shaped stories (taskType: refactor)
 Do NOT force `As a user…`. Refactor story = **behavior-preservation statement + structural goal**. Capture old-code transformation (modified OR removed) as explicit acceptance criteria + migration-step ordering (introduce new → migrate callers → modify/remove old). e2e = mandatory safety net. See ADR 0012.
@@ -21,4 +22,5 @@ Present PRD to user. Require EXPLICIT consent before implementation. Do not proc
 - Writing implementation detail into PRD (PRD = what + acceptance, not how).
 - Proceeding to implementation without explicit human approval.
 - Omitting testing-decisions (downstream test-cases have nothing to derive from).
+- Leaving ARCHITECTURE.md §4.1 test architecture empty on an API-bearing task (gate-1 blocks; slices have no stack/auth/isolation contract).
 - Creating/amending ARCHITECTURE.md without updating §Index.

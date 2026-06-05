@@ -38,7 +38,8 @@ Standing contract for how code and tests are written. Injected into every implem
 5. **Readability over defensive coding** — test is spec a human reads; keep it linear and obvious, not robust-but-opaque.
 6. **Behavior, not implementation** — assert outcomes stakeholder cares about, so test survives refactor that preserves behavior.
 
-7. **BR-PLAYWRIGHT-01: Playwright token budget** — Live browser verification (navigate + snapshot + screenshot + evaluate) costs ~2–4K tokens per call. Full acceptance-criteria walk runs 15–30 calls = 30–90K tokens — highest token-growth phase. (Currently STUBBED gate-5 step pending automation — ADR 0022.) When it lands, run in own fresh spawn, never appended to long implementation context.
+7. **BR-PLAYWRIGHT-01: scope — API/integration only, no UI automation (Fork Y, ADR 0024)** — Playwright in this flow drives **API/integration** (`request` fixture), never browser UI. Agents do NOT open the app for UI verification (too costly + brittle); UI is verified by the human-QA Manual walk. No browser navigate/snapshot/screenshot/POM in slice or verification code.
+8. **BR-PLAYWRIGHT-02: API/integration test standard** — follow [standards/api-testing.md](standards/api-testing.md) (canonical): `request` fixture, web-first assertions, M1 docker-compose stack, per-test data isolation, traceability. **Project's own API-test conventions (ARCHITECTURE.md §4) override that baseline.**
 
 ## How enforced
 - Every slice sub-agent receives this file in context.
@@ -48,3 +49,4 @@ Standing contract for how code and tests are written. Injected into every implem
 
 ## Changelog
 - v1 — initial. karpathy coding guidelines + qa BR-PL-01..06.
+- v1.1 — Fork Y (ADR 0024): BR-PLAYWRIGHT-01 rescoped (API/integration only, no UI automation); added BR-PLAYWRIGHT-02 (API test standards).
